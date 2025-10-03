@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Gestione Aule e Calendari</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        .calendar-day { min-height: 120px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Icone SVG
+        const CalendarIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        );
+
+        const UsersIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
+
+        const MapPinIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        );
+
+        const PlusIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+        );
+
+        const Trash2Icon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+        );
+
+        const EditIcon = () => (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+        );
+
+        const FileTextIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+        );
+
+        const DownloadIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        );
+
+        const ChevronLeftIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        );
+
+        const ChevronRightIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        );
+
+        const SchoolScheduleManager = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [viewMode, setViewMode] = useState('week');
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            
+            const [teachers, setTeachers] = useState([
+                { id: 1, name: 'Prof. Rossi Mario', email: 'rossi@scuola.it', subject: 'Informatica' },
+                { id: 2, name: 'Prof.ssa Bianchi Laura', email: 'bianchi@scuola.it', subject: 'Parrucchiere' },
+            ]);
+
+            const [rooms, setRooms] = useState([
+                { id: 1, name: 'Informatica 20', capacity: 20, type: 'Informatica', hasProjector: true },
+                { id: 2, name: 'Informatica 28', capacity: 28, type: 'Informatica', hasProjector: true },
+                { id: 3, name: 'Parrucchieri/Estetiste', capacity: 25, type: 'Parrucchieri', hasProjector: false },
+                { id: 4, name: 'Aula Piccola', capacity: 8, type: 'Didattica', hasProjector: false },
+            ]);
+
+            const [lessons, setLessons] = useState([
+                { id: 1, teacherId: 1, roomId: 1, date: '2025-10-06', dayOfWeek: 'Lunedì', startTime: '09:00', duration: 2, subject: 'Programmazione' },
+                { id: 2, teacherId: 2, roomId: 3, date: '2025-10-06', dayOfWeek: 'Lunedì', startTime: '11:00', duration: 3, subject: 'Taglio Base' },
+                { id: 3, teacherId: 1, roomId: 2, date: '2025-10-07', dayOfWeek: 'Martedì', startTime: '14:00', duration: 2, subject: 'Database' },
+                { id: 4, teacherId: 2, roomId: 3, date: '2025-10-08', dayOfWeek: 'Mercoledì', startTime: '09:00', duration: 4, subject: 'Colorazione' },
+            ]);
+
+            const [showAddTeacher, setShowAddTeacher] = useState(false);
+            const [showAddLesson, setShowAddLesson] = useState(false);
+            const [showEditLesson, setShowEditLesson] = useState(false);
+            const [showAddRoom, setShowAddRoom] = useState(false);
+            const [showEditRoom, setShowEditRoom] = useState(false);
+            const [editingLesson, setEditingLesson] = useState(null);
+            const [editingRoom, setEditingRoom] = useState(null);
+            const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subject: '' });
+            const [newRoom, setNewRoom] = useState({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
+            const [newLesson, setNewLesson] = useState({
+                teacherId: '',
+                roomId: '',
+                date: new Date().toISOString().split('T')[0],
+                startTime: '09:00',
+                duration: 1,
+                subject: ''
+            });
+
+            const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+            const italianMonths = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 
+                                  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+            
+            const timeSlots = Array.from({ length: 11 }, (_, i) => {
+                const hour = 8 + i;
+                return `${hour.toString().padStart(2, '0')}:00`;
+            });
+
+            const subjectColors = {
+                'Programmazione': 'bg-blue-200 border-blue-400',
+                'Database': 'bg-purple-200 border-purple-400',
+                'Taglio Base': 'bg-pink-200 border-pink-400',
+                'Colorazione': 'bg-rose-200 border-rose-400',
+                'Informatica': 'bg-cyan-200 border-cyan-400',
+                'Parrucchiere': 'bg-amber-200 border-amber-400',
+                'default': 'bg-gray-200 border-gray-400'
+            };
+
+            const getSubjectColor = (subject) => {
+                return subjectColors[subject] || subjectColors['default'];
+            };
+
+            const uniqueSubjects = [...new Set(lessons.map(l => l.subject))];
+
+            const getWeekStart = (date) => {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                return new Date(d.setDate(diff));
+            };
+
+            const getWeekDates = (startDate) => {
+                const dates = [];
+                for (let i = 0; i < 6; i++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + i);
+                    dates.push(date);
+                }
+                return dates;
+            };
+
+            const getMonthCalendarDays = (date) => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                
+                const startDay = firstDay.getDay();
+                const daysInMonth = lastDay.getDate();
+                
+                const days = [];
+                const startOffset = startDay === 0 ? 6 : startDay - 1;
+                
+                for (let i = 0; i < startOffset; i++) {
+                    const prevDate = new Date(year, month, -startOffset + i + 1);
+                    days.push({ date: prevDate, isCurrentMonth: false });
+                }
+                
+                for (let i = 1; i <= daysInMonth; i++) {
+                    days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+                }
+                
+                const remainingDays = 42 - days.length;
+                for (let i = 1; i <= remainingDays; i++) {
+                    days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+                }
+                
+                return days;
+            };
+
+            const formatDate = (date) => {
+                const d = new Date(date);
+                return d.toISOString().split('T')[0];
+            };
+
+            const getDayName = (date) => {
+                const d = new Date(date);
+                return italianDays[d.getDay()];
+            };
+
+            const navigatePrevious = () => {
+                const newDate = new Date(selectedDate);
+                if (viewMode === 'week') {
+                    newDate.setDate(newDate.getDate() - 7);
+                } else if (viewMode === 'month') {
+                    newDate.setMonth(newDate.getMonth() - 1);
+                } else {
+                    newDate.setFullYear(newDate.getFullYear() - 1);
+                }
+                setSelectedDate(newDate);
+            };
+
+            const navigateNext = () => {
+                const newDate = new Date(selectedDate);
+                if (viewMode === 'week') {
+                    newDate.setDate(newDate.getDate() + 7);
+                } else if (viewMode === 'month') {
+                    newDate.setMonth(newDate.getMonth() + 1);
+                } else {
+                    newDate.setFullYear(newDate.getFullYear() + 1);
+                }
+                setSelectedDate(newDate);
+            };
+
+            const goToToday = () => {
+                setSelectedDate(new Date());
+            };
+
+            const addTeacher = () => {
+                if (newTeacher.name && newTeacher.email) {
+                    setTeachers([...teachers, { ...newTeacher, id: Date.now() }]);
+                    setNewTeacher({ name: '', email: '', subject: '' });
+                    setShowAddTeacher(false);
+                }
+            };
+
+            const deleteTeacher = (id) => {
+                if (window.confirm('Sei sicuro di voler eliminare questo insegnante?')) {
+                    setTeachers(teachers.filter(t => t.id !== id));
+                    setLessons(lessons.filter(l => l.teacherId !== id));
+                }
+            };
+
+            const addRoom = () => {
+                if (newRoom.name && newRoom.capacity) {
+                    setRooms([...rooms, { ...newRoom, id: Date.now(), capacity: parseInt(newRoom.capacity) }]);
+                    setNewRoom({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
+                    setShowAddRoom(false);
+                }
+            };
+
+            const startEditRoom = (room) => {
+                setEditingRoom({
+                    id: room.id,
+                    name: room.name,
+                    capacity: room.capacity,
+                    type: room.type,
+                    hasProjector: room.hasProjector
+                });
+                setShowEditRoom(true);
+            };
+
+            const updateRoom = () => {
+                if (editingRoom.name && editingRoom.capacity) {
+                    setRooms(rooms.map(r => 
+                        r.id === editingRoom.id 
+                            ? { ...editingRoom, capacity: parseInt(editingRoom.capacity) }
+                            : r
+                    ));
+                    setShowEditRoom(false);
+                    setEditingRoom(null);
+                }
+            };
+
+            const deleteRoom = (id) => {
+                const roomLessons = lessons.filter(l => l.roomId === id);
+                if (roomLessons.length > 0) {
+                    alert(`Impossibile eliminare l'aula: ci sono ${roomLessons.length} lezioni programmate in questa aula. Elimina prima le lezioni.`);
+                    return;
+                }
+                if (window.confirm('Sei sicuro di voler eliminare questa aula?')) {
+                    setRooms(rooms.filter(r => r.id !== id));
+                }
+            };
+
+            const addLesson = () => {
+                if (newLesson.teacherId && newLesson.roomId && newLesson.subject && newLesson.date) {
+                    const lessonDate = new Date(newLesson.date);
+                    const dayOfWeek = italianDays[lessonDate.getDay()];
+                    
+                    const conflict = checkConflict({...newLesson, dayOfWeek});
+                    if (conflict) {
+                        alert(`Conflitto rilevato: ${conflict}`);
+                        return;
+                    }
+                    
+                    setLessons([...lessons, { 
+                        ...newLesson, 
+                        id: Date.now(),
+                        dayOfWeek: dayOfWeek
+                    }]);
+                    setNewLesson({
+                        teacherId: '',
+                        roomId: '',
+                        date: new Date().toISOString().split('T')[0],
+                        startTime: '09:00',
+                        duration: 1,
+                        subject: ''
+                    });
+                    setShowAddLesson(false);
+                }
+            };
+
+            const startEditLesson = (lesson) => {
+                setEditingLesson({
+                    id: lesson.id,
+                    teacherId: lesson.teacherId,
+                    roomId: lesson.roomId,
+                    date: lesson.date,
+                    startTime: lesson.startTime,
+                    duration: lesson.duration,
+                    subject: lesson.subject
+                });
+                setShowEditLesson(true);
+            };
+
+            const updateLesson = () => {
+                if (editingLesson.teacherId && editingLesson.roomId && editingLesson.subject && editingLesson.date) {
+                    const lessonDate = new Date(editingLesson.date);
+                    const dayOfWeek = italianDays[lessonDate.getDay()];
+                    
+                    const conflict = checkConflict({...editingLesson, dayOfWeek}, editingLesson.id);
+                    if (conflict) {
+                        alert(`Conflitto rilevato: ${conflict}`);
+                        return;
+                    }
+                    
+                    setLessons(lessons.map(l => 
+                        l.id === editingLesson.id 
+                            ? { ...editingLesson, dayOfWeek: dayOfWeek }
+                            : l
+                    ));
+                    setShowEditLesson(false);
+                    setEditingLesson(null);
+                }
+            };
+
+            const checkConflict = (lesson, excludeId = null) => {
+                const startHour = parseInt(lesson.startTime.split(':')[0]);
+                const endHour = startHour + parseInt(lesson.duration);
+
+                for (let existing of lessons) {
+                    if (excludeId && existing.id === excludeId) continue;
+                    
+                    if (existing.date === lesson.date) {
+                        const existingStart = parseInt(existing.startTime.split(':')[0]);
+                        const existingEnd = existingStart + parseInt(existing.duration);
+                        const timeOverlap = (startHour < existingEnd && endHour > existingStart);
+
+                        if (timeOverlap) {
+                            if (existing.teacherId === parseInt(lesson.teacherId)) {
+                                return 'Insegnante già impegnato in questo orario';
+                            }
+                            if (existing.roomId === parseInt(lesson.roomId)) {
+                                return 'Aula già occupata in questo orario';
+                            }
+                        }
+                    }
+                }
+                return null;
+            };
+
+            const deleteLesson = (id) => {
+                if (window.confirm('Sei sicuro di voler eliminare questa lezione?')) {
+                    setLessons(lessons.filter(l => l.id !== id));
+                }
+            };
+
+            const getFilteredLessons = () => {
+                if (viewMode === 'week') {
+                    const weekStart = getWeekStart(selectedDate);
+                    const weekDates = getWeekDates(weekStart);
+                    const dateStrings = weekDates.map(d => formatDate(d));
+                    return lessons.filter(l => dateStrings.includes(l.date));
+                } else if (viewMode === 'month') {
+                    const year = selectedDate.getFullYear();
+                    const month = selectedDate.getMonth();
+                    return lessons.filter(l => {
+                        const lessonDate = new Date(l.date);
+                        return lessonDate.getFullYear() === year && lessonDate.getMonth() === month;
+                    });
+                } else {
+                    const year = selectedDate.getFullYear();
+                    return lessons.filter(l => new Date(l.date).getFullYear() === year);
+                }
+            };
+
+            const exportToPDF = (teacherId) => {
+                const teacher = teachers.find(t => t.id === teacherId);
+                const teacherLessons = lessons.filter(l => l.teacherId === teacherId);
+
+                let content = `CALENDARIO LEZIONI - ${teacher.name}\n`;
+                content += `Materia: ${teacher.subject}\n`;
+                content += `Email: ${teacher.email}\n\n`;
+                content += `${'='.repeat(60)}\n\n`;
+
+                teacherLessons.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(lesson => {
+                    const lessonDate = new Date(lesson.date);
+                    const endHour = parseInt(lesson.startTime.split(':')[0]) + lesson.duration;
+                    const room = rooms.find(r => r.id === lesson.roomId);
+                    
+                    content += `${lesson.dayOfWeek} ${lessonDate.getDate()}/${lessonDate.getMonth() + 1}/${lessonDate.getFullYear()}\n`;
+                    content += `  ${lesson.startTime} - ${endHour}:00 | ${lesson.subject}\n`;
+                    content += `  Aula: ${room.name} (${room.capacity} posti)\n\n`;
+                });
+
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `calendario_${teacher.name.replace(/\s+/g, '_')}.txt`;
+                a.click();
+            };
+
+            const exportToExcel = (teacherId) => {
+                const teacher = teachers.find(t => t.id === teacherId);
+                const teacherLessons = lessons.filter(l => l.teacherId === teacherId);
+
+                let csv = 'Data,Giorno,Ora Inizio,Ora Fine,Materia,Aula,Posti\n';
+
+                teacherLessons.forEach(lesson => {
+                    const room = rooms.find(r => r.id === lesson.roomId);
+                    const endHour = parseInt(lesson.startTime.split(':')[0]) + lesson.duration;
+                    csv += `${lesson.date},${lesson.dayOfWeek},${lesson.startTime},${endHour}:00,${lesson.subject},${room.name},${room.capacity}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `calendario_${teacher.name.replace(/\s+/g, '_')}.csv`;
+                a.click();
+            };
+
+            const MasterCalendar = () => {
+                const filteredLessons = getFilteredLessons();
+                let weekDates = [];
+                let displayDays = [];
+                let monthDays = [];
+
+                if (viewMode === 'week') {
+                    const weekStart = getWeekStart(selectedDate);
+                    weekDates = getWeekDates(weekStart);
+                    displayDays = weekDates.map(d => ({
+                        name: italianDays[d.getDay()],
+                        date: d,
+                        dateStr: formatDate(d)
+                    }));
+                } else if (viewMode === 'month') {
+                    monthDays = getMonthCalendarDays(selectedDate);
+                }
+
+                const getDateDisplay = () => {
+                    if (viewMode === 'week') {
+                        const weekStart = getWeekStart(selectedDate);
+                        const weekEnd = new Date(weekStart);
+                        weekEnd.setDate(weekEnd.getDate() + 5);
+                        return `${weekStart.getDate()} ${italianMonths[weekStart.getMonth()]} - ${weekEnd.getDate()} ${italianMonths[weekEnd.getMonth()]} ${weekStart.getFullYear()}`;
+                    } else if (viewMode === 'month') {
+                        return `${italianMonths[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+                    } else {
+                        return `Anno ${selectedDate.getFullYear()}`;
+                    }
+                };
+
+                return (
+                    <div className="bg-white rounded-lg shadow p-6 mb-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold text-gray-800">Calendario Completo</h2>
+                            
+                            <div className="flex gap-3 items-center">
+                                <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => setViewMode('week')}
+                                        className={`px-4 py-2 rounded ${viewMode === 'week' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                                    >
+                                        Settimana
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('month')}
+                                        className={`px-4 py-2 rounded ${viewMode === 'month' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                                    >
+                                        Mese
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('year')}
+                                        className={`px-4 py-2 rounded ${viewMode === 'year' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                                    >
+                                        Anno
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-center mb-4">
+                            <button
+                                onClick={navigatePrevious}
+                                className="p-2 hover:bg-gray-100 rounded"
+                            >
+                                <ChevronLeftIcon />
+                            </button>
+                            
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold">{getDateDisplay()}</h3>
+                                <button
+                                    onClick={goToToday}
+                                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                >
+                                    Oggi
+                                </button>
+                            </div>
+                            
+                            <button
+                                onClick={navigateNext}
+                                className="p-2 hover:bg-gray-100 rounded"
+                            >
+                                <ChevronRightIcon />
+                            </button>
+                        </div>
+
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                            <div className="flex flex-wrap gap-3">
+                                <span className="font-semibold text-gray-700 mr-2">Legenda Materie:</span>
+                                {uniqueSubjects.map(subject => (
+                                    <div key={subject} className="flex items-center gap-2">
+                                        <div className={`w-4 h-4 rounded ${getSubjectColor(subject)} border-2`}></div>
+                                        <span className="text-sm">{subject}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {viewMode === 'week' && (
+                            <div className="overflow-x-auto">
+                                <table className="w-full border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th className="border p-2 bg-gray-100 sticky left-0">Ora</th>
+                                            {displayDays.map(day => (
+                                                <th key={day.dateStr} className="border p-2 bg-gray-100">
+                                                    <div>{day.name}</div>
+                                                    <div className="text-sm font-normal">{day.date.getDate()}/{day.date.getMonth() + 1}</div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {timeSlots.map(time => (
+                                            <tr key={time}>
+                                                <td className="border p-2 text-center font-semibold bg-gray-50 sticky left-0">{time}</td>
+                                                {displayDays.map(day => {
+                                                    const dayLessons = filteredLessons.filter(l => {
+                                                        const lessonStart = parseInt(l.startTime.split(':')[0]);
+                                                        const lessonEnd = lessonStart + l.duration;
+                                                        const currentHour = parseInt(time.split(':')[0]);
+                                                        return l.date === day.dateStr && currentHour >= lessonStart && currentHour < lessonEnd;
+                                                    });
+
+                                                    if (dayLessons.length > 0) {
+                                                        const lesson = dayLessons[0];
+                                                        const lessonStart = parseInt(lesson.startTime.split(':')[0]);
+                                                        const currentHour = parseInt(time.split(':')[0]);
+
+                                                        if (currentHour === lessonStart) {
+                                                            const teacher = teachers.find(t => t.id === lesson.teacherId);
+                                                            const room = rooms.find(r => r.id === lesson.roomId);
+                                                            return (
+                                                                <td
+                                                                    key={day.dateStr}
+                                                                    rowSpan={lesson.duration}
+                                                                    className={`border-2 p-2 ${getSubjectColor(lesson.subject)}`}
+                                                                >
+                                                                    <div className="text-sm">
+                                                                        <div className="font-bold text-gray-800">{lesson.subject}</div>
+                                                                        <div className="text-xs text-gray-700 mt-1">{teacher?.name}</div>
+                                                                        <div className="text-xs text-gray-600">{room?.name}</div>
+                                                                        <div className="text-xs text-gray-500 mt-1">{lesson.duration}h</div>
+                                                                    </div>
+                                                                </td>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }
+                                                    return <td key={day.dateStr} className="border p-2 bg-white"></td>;
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {viewMode === 'month' && (
+                            <div>
+                                <div className="grid grid-cols-7 gap-1">
+                                    {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                                        <div key={day} className="border p-2 bg-gray-100 text-center font-semibold">
+                                            {day}
+                                        </div>
+                                    ))}
+                                    {monthDays.map((dayObj, idx) => {
+                                        const dateStr = formatDate(dayObj.date);
+                                        const dayLessons = filteredLessons.filter(l => l.date === dateStr);
+                                        const isToday = formatDate(new Date()) === dateStr;
+                                        
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`border p-2 calendar-day ${
+                                                    !dayObj.isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'
+                                                } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                                            >
+                                                <div className="font-semibold text-sm mb-1">{dayObj.date.getDate()}</div>
+                                                <div className="space-y-1">
+                                                    {dayLessons.map(lesson => {
+                                                        const teacher = teachers.find(t => t.id === lesson.teacherId);
+                                                        return (
+                                                            <div
+                                                                key={lesson.id}
+                                                                className={`text-xs p-1 rounded ${getSubjectColor(lesson.subject)} cursor-pointer hover:opacity-80`}
+                                                                onClick={() => startEditLesson(lesson)}
+                                                                title="Click per modificare"
+                                                            >
+                                                                <div className="font-semibold truncate">{lesson.startTime} {lesson.subject}</div>
+                                                                <div className="truncate">{teacher?.name}</div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {viewMode === 'year' && (
+                            <div className="space-y-2">
+                                {filteredLessons.sort((a, b) => new Date(a.date) - new Date(b.date)).map(lesson => {
+                                    const teacher = teachers.find(t => t.id === lesson.teacherId);
+                                    const room = rooms.find(r => r.id === lesson.roomId);
+                                    const lessonDate = new Date(lesson.date);
+                                    return (
+                                        <div key={lesson.id} className={`flex justify-between items-center p-4 rounded-lg border-l-4 ${getSubjectColor(lesson.subject)}`}>
+                                            <div className="flex-1">
+                                                <div className="font-semibold text-gray-800">{lesson.subject}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {teacher?.name} - {lesson.dayOfWeek} {lessonDate.getDate()}/{lessonDate.getMonth() + 1}/{lessonDate.getFullYear()} - {lesson.startTime} ({lesson.duration}h) - {room?.name}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => startEditLesson(lesson)}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                    title="Modifica"
+                                                >
+                                                    <EditIcon />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteLesson(lesson.id)}
+                                                    className="text-red-600 hover:text-red-800"
+                                                    title="Elimina"
+                                                >
+                                                    <Trash2Icon />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        <div className="mt-4 text-sm text-gray-600">
+                            <strong>Totale lezioni visualizzate:</strong> {filteredLessons.length}
+                        </div>
+                    </div>
+                );
+            };
+
+            const TeacherCalendar = ({ teacher }) => {
+                const teacherLessons = lessons.filter(l => l.teacherId === teacher.id);
+                const weekStart = getWeekStart(new Date());
+                const weekDates = getWeekDates(weekStart);
+                const displayDays = weekDates.map(d => ({
+                    name: italianDays[d.getDay()],
+                    date: d,
+                    dateStr: formatDate(d)
+                }));
+
+                return (
+                    <div className="bg-white rounded-lg shadow p-6 mb-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-800">{teacher.name}</h3>
+                                <p className="text-gray-600">{teacher.subject}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => exportToPDF(teacher.id)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                >
+                                    <FileTextIcon />
+                                    PDF
+                                </button>
+                                <button
+                                    onClick={() => exportToExcel(teacher.id)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                    <DownloadIcon />
+                                    Excel
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr>
+                                        <th className="border p-2 bg-gray-100">Ora</th>
+                                        {displayDays.map(day => (
+                                            <th key={day.dateStr} className="border p-2 bg-gray-100">
+                                                <div>{day.name}</div>
+                                                <div className="text-sm font-normal">{day.date.getDate()}/{day.date.getMonth() + 1}</div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {timeSlots.map(time => (
+                                        <tr key={time}>
+                                            <td className="border p-2 text-center font-semibold bg-gray-50">{time}</td>
+                                            {displayDays.map(day => {
+                                                const lesson = teacherLessons.find(l => {
+                                                    const lessonStart = parseInt(l.startTime.split(':')[0]);
+                                                    const lessonEnd = lessonStart + l.duration;
+                                                    const currentHour = parseInt(time.split(':')[0]);
+                                                    return l.date === day.dateStr && currentHour >= lessonStart && currentHour < lessonEnd;
+                                                });
+
+                                                if (lesson) {
+                                                    const lessonStart = parseInt(lesson.startTime.split(':')[0]);
+                                                    const currentHour = parseInt(time.split(':')[0]);
+
+                                                    if (currentHour === lessonStart) {
+                                                        const room = rooms.find(r => r.id === lesson.roomId);
+                                                        return (
+                                                            <td
+                                                                key={day.dateStr}
+                                                                rowSpan={lesson.duration}
+                                                                className={`border-2 p-2 ${getSubjectColor(lesson.subject)}`}
+                                                            >
+                                                                <div className="text-sm">
+                                                                    <div className="font-bold">{lesson.subject}</div>
+                                                                    <div className="text-xs text-gray-600">{room.name}</div>
+                                                                    <div className="text-xs text-gray-500">{lesson.duration}h</div>
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    }
+                                                    return null;
+                                                }
+                                                return <td key={day.dateStr} className="border p-2"></td>;
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <h1 className="text-3xl font-bold text-gray-800 mb-2">Sistema Gestione Aule e Calendari</h1>
+                            <p className="text-gray-600">Gestione completa delle aule e dei calendari degli insegnanti</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Data corrente: {italianDays[currentDate.getDay()]}, {currentDate.getDate()} {italianMonths[currentDate.getMonth()]} {currentDate.getFullYear()}
+                            </p>
+                        </div>
+
+                        <div className="flex gap-4 mb-6">
+                            <button
+                                onClick={() => setActiveTab('dashboard')}
+                                className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                            >
+                                <CalendarIcon />
+                                Dashboard
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('teachers')}
+                                className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 ${activeTab === 'teachers' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                            >
+                                <UsersIcon />
+                                Insegnanti
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('rooms')}
+                                className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 ${activeTab === 'rooms' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+                            >
+                                <MapPinIcon />
+                                Aule
+                            </button>
+                        </div>
+
+                        {activeTab === 'dashboard' && (
+                            <div>
+                                <MasterCalendar />
+
+                                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-2xl font-bold text-gray-800">Gestione Lezioni</h2>
+                                        <button
+                                            onClick={() => setShowAddLesson(true)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        >
+                                            <PlusIcon />
+                                            Aggiungi Lezione
+                                        </button>
+                                    </div>
+
+                                    {showAddLesson && (
+                                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                            <h3 className="font-bold mb-4">Nuova Lezione</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <select
+                                                    value={newLesson.teacherId}
+                                                    onChange={(e) => setNewLesson({ ...newLesson, teacherId: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                >
+                                                    <option value="">Seleziona Insegnante</option>
+                                                    {teachers.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    value={newLesson.roomId}
+                                                    onChange={(e) => setNewLesson({ ...newLesson, roomId: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                >
+                                                    <option value="">Seleziona Aula</option>
+                                                    {rooms.map(r => (
+                                                        <option key={r.id} value={r.id}>{r.name} ({r.capacity} posti)</option>
+                                                    ))}
+                                                </select>
+                                                <input
+                                                    type="date"
+                                                    value={newLesson.date}
+                                                    onChange={(e) => setNewLesson({ ...newLesson, date: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                />
+                                                <select
+                                                    value={newLesson.startTime}
+                                                    onChange={(e) => setNewLesson({ ...newLesson, startTime: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                >
+                                                    {timeSlots.map(t => (
+                                                        <option key={t} value={t}>{t}</option>
+                                                    ))}
+                                                </select>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="8"
+                                                    value={newLesson.duration}
+                                                    onChange={(e) => setNewLesson({ ...newLesson, duration: e.target.value })}
+                                                    placeholder="Durata (ore)"
+                                                    className="p-2 border rounded"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={newLesson.subject}
+                                                    onChange={(e) => setNewLesson({ ...newLesson, subject: e.target.value })}
+                                                    placeholder="Materia"
+                                                    className="p-2 border rounded"
+                                                />
+                                            </div>
+                                            <div className="flex gap-2 mt-4">
+                                                <button
+                                                    onClick={addLesson}
+                                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                                >
+                                                    Salva
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowAddLesson(false)}
+                                                    className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                                >
+                                                    Annulla
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {showEditLesson && editingLesson && (
+                                        <div className="bg-blue-50 p-4 rounded-lg mb-4 border-2 border-blue-300">
+                                            <h3 className="font-bold mb-4 text-blue-800">Modifica Lezione</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <select
+                                                    value={editingLesson.teacherId}
+                                                    onChange={(e) => setEditingLesson({ ...editingLesson, teacherId: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                >
+                                                    <option value="">Seleziona Insegnante</option>
+                                                    {teachers.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    value={editingLesson.roomId}
+                                                    onChange={(e) => setEditingLesson({ ...editingLesson, roomId: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                >
+                                                    <option value="">Seleziona Aula</option>
+                                                    {rooms.map(r => (
+                                                        <option key={r.id} value={r.id}>{r.name} ({r.capacity} posti)</option>
+                                                    ))}
+                                                </select>
+                                                <input
+                                                    type="date"
+                                                    value={editingLesson.date}
+                                                    onChange={(e) => setEditingLesson({ ...editingLesson, date: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                />
+                                                <select
+                                                    value={editingLesson.startTime}
+                                                    onChange={(e) => setEditingLesson({ ...editingLesson, startTime: e.target.value })}
+                                                    className="p-2 border rounded"
+                                                >
+                                                    {timeSlots.map(t => (
+                                                        <option key={t} value={t}>{t}</option>
+                                                    ))}
+                                                </select>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="8"
+                                                    value={editingLesson.duration}
+                                                    onChange={(e) => setEditingLesson({ ...editingLesson, duration: e.target.value })}
+                                                    placeholder="Durata (ore)"
+                                                    className="p-2 border rounded"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={editingLesson.subject}
+                                                    onChange={(e) => setEditingLesson({ ...editingLesson, subject: e.target.value })}
+                                                    placeholder="Materia"
+                                                    className="p-2 border rounded"
+                                                />
+                                            </div>
+                                            <div className="flex gap-2 mt-4">
+                                                <button
+                                                    onClick={updateLesson}
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                >
+                                                    Aggiorna
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowEditLesson(false);
+                                                        setEditingLesson(null);
+                                                    }}
+                                                    className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                                >
+                                                    Annulla
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        {lessons.sort((a, b) => new Date(a.date) - new Date(b.date)).map(lesson => {
+                                            const teacher = teachers.find(t => t.id === lesson.teacherId);
+                                            const room = rooms.find(r => r.id === lesson.roomId);
+                                            const lessonDate = new Date(lesson.date);
+                                            return (
+                                                <div key={lesson.id} className={`flex justify-between items-center p-4 rounded-lg border-l-4 ${getSubjectColor(lesson.subject)}`}>
+                                                    <div>
+                                                        <div className="font-semibold text-gray-800">{lesson.subject}</div>
+                                                        <div className="text-sm text-gray-600">
+                                                            {teacher?.name} - {lesson.dayOfWeek} {lessonDate.getDate()}/{lessonDate.getMonth() + 1}/{lessonDate.getFullYear()} - {lesson.startTime} ({lesson.duration}h) - {room?.name}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => startEditLesson(lesson)}
+                                                            className="text-blue-600 hover:text-blue-800"
+                                                            title="Modifica"
+                                                        >
+                                                            <EditIcon />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => deleteLesson(lesson.id)}
+                                                            className="text-red-600 hover:text-red-800"
+                                                            title="Elimina"
+                                                        >
+                                                            <Trash2Icon />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <h2 className="text-2xl font-bold text-gray-800 mb-4">Calendari Individuali Insegnanti</h2>
+                                {teachers.map(teacher => (
+                                    <TeacherCalendar key={teacher.id} teacher={teacher} />
+                                ))}
+                            </div>
+                        )}
+
+                        {activeTab === 'teachers' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800">Gestione Insegnanti</h2>
+                                    <button
+                                        onClick={() => setShowAddTeacher(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    >
+                                        <PlusIcon />
+                                        Aggiungi Insegnante
+                                    </button>
+                                </div>
+
+                                {showAddTeacher && (
+                                    <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                                        <h3 className="font-bold mb-4">Nuovo Insegnante</h3>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                value={newTeacher.name}
+                                                onChange={(e) => setNewTeacher({ ...newTeacher, name: e.target.value })}
+                                                placeholder="Nome completo"
+                                                className="w-full p-2 border rounded"
+                                            />
+                                            <input
+                                                type="email"
+                                                value={newTeacher.email}
+                                                onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
+                                                placeholder="Email"
+                                                className="w-full p-2 border rounded"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={newTeacher.subject}
+                                                onChange={(e) => setNewTeacher({ ...newTeacher, subject: e.target.value })}
+                                                placeholder="Materia"
+                                                className="w-full p-2 border rounded"
+                                            />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={addTeacher}
+                                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                                >
+                                                    Salva
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowAddTeacher(false)}
+                                                    className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                                >
+                                                    Annulla
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {teachers.map(teacher => (
+                                        <div key={teacher.id} className="border rounded-lg p-4">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h3 className="font-bold text-lg">{teacher.name}</h3>
+                                                    <p className="text-gray-600">{teacher.subject}</p>
+                                                    <p className="text-sm text-gray-500">{teacher.email}</p>
+                                                    <p className="text-sm text-blue-600 mt-2">
+                                                        {lessons.filter(l => l.teacherId === teacher.id).length} lezioni programmate
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => deleteTeacher(teacher.id)}
+                                                    className="text-red-600 hover:text-red-800"
+                                                >
+                                                    <Trash2Icon />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'rooms' && (
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800">Gestione Aule</h2>
+                                    <button
+                                        onClick={() => setShowAddRoom(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    >
+                                        <PlusIcon />
+                                        Aggiungi Aula
+                                    </button>
+                                </div>
+
+                                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                                    <p className="text-sm text-blue-800">
+                                        <strong>Totale aule disponibili:</strong> {rooms.length}
+                                    </p>
+                                </div>
+
+                                {showAddRoom && (
+                                    <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                                        <h3 className="font-bold mb-4">Nuova Aula</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input
+                                                type="text"
+                                                value={newRoom.name}
+                                                onChange={(e) => setNewRoom({ ...newRoom, name: e.target.value })}
+                                                placeholder="Nome aula"
+                                                className="p-2 border rounded"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="100"
+                                                value={newRoom.capacity}
+                                                onChange={(e) => setNewRoom({ ...newRoom, capacity: e.target.value })}
+                                                placeholder="Numero posti"
+                                                className="p-2 border rounded"
+                                            />
+                                            <select
+                                                value={newRoom.type}
+                                                onChange={(e) => setNewRoom({ ...newRoom, type: e.target.value })}
+                                                className="p-2 border rounded"
+                                            >
+                                                <option value="Informatica">Informatica</option>
+                                                <option value="Parrucchieri">Parrucchieri</option>
+                                                <option value="Didattica">Didattica</option>
+                                                <option value="Laboratorio">Laboratorio</option>
+                                                <option value="Aula Magna">Aula Magna</option>
+                                            </select>
+                                            <label className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={newRoom.hasProjector}
+                                                    onChange={(e) => setNewRoom({ ...newRoom, hasProjector: e.target.checked })}
+                                                    className="w-4 h-4"
+                                                />
+                                                <span>Proiettore disponibile</span>
+                                            </label>
+                                        </div>
+                                        <div className="flex gap-2 mt-4">
+                                            <button
+                                                onClick={addRoom}
+                                                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                            >
+                                                Salva
+                                            </button>
+                                            <button
+                                                onClick={() => setShowAddRoom(false)}
+                                                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                            >
+                                                Annulla
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {showEditRoom && editingRoom && (
+                                    <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-300">
+                                        <h3 className="font-bold mb-4 text-blue-800">Modifica Aula</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input
+                                                type="text"
+                                                value={editingRoom.name}
+                                                onChange={(e) => setEditingRoom({ ...editingRoom, name: e.target.value })}
+                                                placeholder="Nome aula"
+                                                className="p-2 border rounded"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="100"
+                                                value={editingRoom.capacity}
+                                                onChange={(e) => setEditingRoom({ ...editingRoom, capacity: e.target.value })}
+                                                placeholder="Numero posti"
+                                                className="p-2 border rounded"
+                                            />
+                                            <select
+                                                value={editingRoom.type}
+                                                onChange={(e) => setEditingRoom({ ...editingRoom, type: e.target.value })}
+                                                className="p-2 border rounded"
+                                            >
+                                                <option value="Informatica">Informatica</option>
+                                                <option value="Parrucchieri">Parrucchieri</option>
+                                                <option value="Didattica">Didattica</option>
+                                                <option value="Laboratorio">Laboratorio</option>
+                                                <option value="Aula Magna">Aula Magna</option>
+                                            </select>
+                                            <label className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingRoom.hasProjector}
+                                                    onChange={(e) => setEditingRoom({ ...editingRoom, hasProjector: e.target.checked })}
+                                                    className="w-4 h-4"
+                                                />
+                                                <span>Proiettore disponibile</span>
+                                            </label>
+                                        </div>
+                                        <div className="flex gap-2 mt-4">
+                                            <button
+                                                onClick={updateRoom}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                            >
+                                                Aggiorna
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowEditRoom(false);
+                                                    setEditingRoom(null);
+                                                }}
+                                                className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                            >
+                                                Annulla
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {rooms.map(room => {
+                                        const roomLessons = lessons.filter(l => l.roomId === room.id);
+                                        const totalHours = roomLessons.reduce((sum, l) => sum + l.duration, 0);
+                                        return (
+                                            <div key={room.id} className="border-2 rounded-lg p-6 hover:border-blue-500 transition">
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div className="flex-1">
+                                                        <h3 className="text-xl font-bold text-gray-800">{room.name}</h3>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-sm px-2 py-1 bg-gray-200 rounded">{room.type}</span>
+                                                            {room.hasProjector && (
+                                                                <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded flex items-center gap-1">
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z"></path>
+                                                                        <path d="M12 17v4"></path>
+                                                                        <path d="M8 21h8"></path>
+                                                                    </svg>
+                                                                    Proiettore
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-blue-100 px-3 py-1 rounded-full">
+                                                        <span className="font-semibold text-blue-800">{room.capacity} posti</span>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2 mb-4">
+                                                    <div className="text-sm text-gray-600">
+                                                        <strong>Lezioni programmate:</strong> {roomLessons.length}
+                                                    </div>
+                                                    <div className="text-sm text-gray-600">
+                                                        <strong>Ore totali:</strong> {totalHours}h
+                                                    </div>
+                                                    <div className="text-sm text-gray-600">
+                                                        <strong>Utilizzo medio:</strong> {roomLessons.length > 0 ? (totalHours / roomLessons.length).toFixed(1) : 0}h per lezione
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 pt-4 border-t">
+                                                    <button
+                                                        onClick={() => startEditRoom(room)}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                    >
+                                                        <EditIcon />
+                                                        Modifica
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteRoom(room.id)}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                                    >
+                                                        <Trash2Icon />
+                                                        Elimina
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<SchoolScheduleManager />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+                                
