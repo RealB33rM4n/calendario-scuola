@@ -42,6 +42,172 @@ const SchoolScheduleManager = () => {
         { id: 4, name: 'Aula Piccola', capacity: 8, type: 'Didattica', hasProjector: false }
     ]);
     const [lessons, setLessons] = useState([]);
+
+    const [courses, setCourses] = useState([]);
+const [showAddCourse, setShowAddCourse] = useState(false);
+const [showEditCourse, setShowEditCourse] = useState(false);
+const [editingCourse, setEditingCourse] = useState(null);
+const [newCourse, setNewCourse] = useState({
+    name: '',
+    totalHours: 0,
+    maxDailyHours: 4,
+    maxConsecutiveHours: 4,
+    startDate: '',
+    endDate: '',
+    subjects: [],
+    stageStartDate: '',
+    stageEndDate: ''
+});
+
+const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+
+const formatDate = (date) => {
+    const d = new Date(date);
+    return d.toISOString().split('T')[0];
+};
+
+const addCourse = () => {
+    if (newCourse.name && newCourse.totalHours && newCourse.startDate && newCourse.endDate) {
+        const course = {
+            ...newCourse,
+            id: Date.now(),
+            totalHours: parseInt(newCourse.totalHours),
+            maxDailyHours: parseInt(newCourse.maxDailyHours),
+            maxConsecutiveHours: parseInt(newCourse.maxConsecutiveHours)
+        };
+        setCourses([...courses, course]);
+        setNewCourse({
+            name: '',
+            totalHours: 0,
+            maxDailyHours: 4,
+            maxConsecutiveHours: 4,
+            startDate: '',
+            endDate: '',
+            subjects: [],
+            stageStartDate: '',
+            stageEndDate: ''
+        });
+        setShowAddCourse(false);
+    }
+};
+
+const startEditCourse = (course) => {
+    setEditingCourse({...course});
+    setShowEditCourse(true);
+};
+
+const updateCourse = () => {
+    if (editingCourse.name && editingCourse.totalHours && editingCourse.startDate && editingCourse.endDate) {
+        setCourses(courses.map(c => c.id === editingCourse.id ? {
+            ...editingCourse,
+            totalHours: parseInt(editingCourse.totalHours),
+            maxDailyHours: parseInt(editingCourse.maxDailyHours),
+            maxConsecutiveHours: parseInt(editingCourse.maxConsecutiveHours)
+        } : c));
+        setShowEditCourse(false);
+        setEditingCourse(null);
+    }
+};
+
+const deleteCourse = (id) => {
+    if (window.confirm('Sei sicuro di voler eliminare questo corso?')) {
+        setCourses(courses.filter(c => c.id !== id));
+        setLessons(lessons.filter(l => l.courseId !== id));
+    }
+};
+
+const addSubjectToCourse = (courseState, setCourseState) => {
+    const newSubjects = [...courseState.subjects, { name: '', hours: 0 }];
+    setCourseState({...courseState, subjects: newSubjects});
+};
+
+const updateSubject = (courseState, setCourseState, index, field, value) => {
+    const newSubjects = [...courseState.subjects];
+    newSubjects[index][field] = field === 'hours' ? parseInt(value) || 0 : value;
+    setCourseState({...courseState, subjects: newSubjects});
+};
+
+const removeSubject = (courseState, setCourseState, index) => {
+    const newSubjects = courseState.subjects.filter((_, i) => i !== index);
+    setCourseState({...courseState, subjects: newSubjects});
+};
+
+const autoScheduleCourse = (course) => {
+    if (!course.startDate || !course.endDate) {
+        alert('Il corso deve avere una data di inizio e fine');
+        return;
+    }
+
+    const newLessons = [];
+    const startDate = new Date(course.startDate);
+    const endDate = new Date(course.endDate);
+    const stageStart = course.stageStartDate ? new Date(course.stageStartDate) : null;
+    const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
+
+    let currentDate = new Date(startDate);
+    let totalScheduledHours = 0;
+    let subjectIndex = 0;
+    let currentSubjectHours = 0;
+
+    const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
+
+    while (totalScheduledHours < course.totalHours && currentDate <= endDate) {
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            continue;
+        }
+
+        if (stageStart && stageEnd && currentDate >= stageStart && currentDate <= stageEnd) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            continue;
+        }
+
+        const remainingHours = course.totalHours - totalScheduledHours;
+        const todayHours = Math.min(course.maxDailyHours, remainingHours);
+
+        if (todayHours > 0 && subjectIndex < subjects.length) {
+            const currentSubject = subjects[subjectIndex];
+            const subjectRemainingHours = currentSubject.hours - currentSubjectHours;
+            const hoursToSchedule = Math.min(todayHours, subjectRemainingHours);
+
+            const teacher = teachers.find(t => t.subject.toLowerCase().includes(currentSubject.name.toLowerCase()) || currentSubject.name.toLowerCase().includes(t.subject.toLowerCase())) || teachers[0];
+            const room = rooms.find(r => r.capacity >= 20) || rooms[0];
+
+            if (teacher && room) {
+                newLessons.push({
+                    id: Date.now() + newLessons.length,
+                    teacherId: teacher.id,
+                    roomId: room.id,
+                    date: formatDate(currentDate),
+                    dayOfWeek: italianDays[currentDate.getDay()],
+                    startTime: '09:00',
+                    duration: Math.min(hoursToSchedule, course.maxConsecutiveHours),
+                    subject: currentSubject.name,
+                    courseId: course.id
+                });
+
+                totalScheduledHours += hoursToSchedule;
+                currentSubjectHours += hoursToSchedule;
+
+                if (currentSubjectHours >= currentSubject.hours) {
+                    subjectIndex++;
+                    currentSubjectHours = 0;
+                }
+            }
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    if (newLessons.length > 0) {
+        setLessons([...lessons, ...newLessons]);
+        alert(`Corso calendarizzato! Create ${newLessons.length} lezioni per un totale di ${totalScheduledHours} ore.`);
+    } else {
+        alert('Impossibile calendarizzare il corso. Verifica le date e la disponibilità.');
+    }
+};
+    
     const [showAddTeacher, setShowAddTeacher] = useState(false);
     const [showAddRoom, setShowAddRoom] = useState(false);
     const [showEditRoom, setShowEditRoom] = useState(false);
@@ -132,12 +298,37 @@ const SchoolScheduleManager = () => {
                     </div>
                 )}
 
-                {activeTab === 'courses' && (
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h2 className="text-2xl font-bold mb-4">Gestione Corsi</h2>
-                        <p className="text-gray-600">Funzionalità corsi in sviluppo. Usa la sezione Insegnanti e Aule per ora.</p>
+             {activeTab === 'courses' && (
+    <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Gestione Corsi</h2>
+            <button onClick={() => setShowAddCourse(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <PlusIcon />Aggiungi Corso
+            </button>
+        </div>
+
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800"><strong>Totale corsi:</strong> {courses.length}</p>
+        </div>
+
+        {showAddCourse && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <h3 className="font-bold mb-4">Nuovo Corso</h3>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    <input type="text" value={newCourse.name} onChange={(e) => setNewCourse({...newCourse, name: e.target.value})} placeholder="Nome corso" className="p-2 border rounded col-span-2"/>
+                    <input type="number" min="1" value={newCourse.totalHours} onChange={(e) => setNewCourse({...newCourse, totalHours: e.target.value})} placeholder="Totale ore" className="p-2 border rounded"/>
+                    <input type="number" min="1" max="8" value={newCourse.maxDailyHours} onChange={(e) => setNewCourse({...newCourse, maxDailyHours: e.target.value})} placeholder="Max ore giornaliere" className="p-2 border rounded"/>
+                    <input type="number" min="1" max="8" value={newCourse.maxConsecutiveHours} onChange={(e) => setNewCourse({...newCourse, maxConsecutiveHours: e.target.value})} placeholder="Max ore consecutive" className="p-2 border rounded"/>
+                    <div></div>
+                    <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Date corso</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <input type="date" value={newCourse.startDate} onChange={(e) => setNewCourse({...newCourse, startDate: e.target.value})} className="p-2 border rounded"/>
+                            <input type="date" value={newCourse.endDate} onChange={(e) => setNewCourse({...newCourse, endDate: e.target.value})} className="p-2 border rounded"/>
+                        </div>
                     </div>
-                )}
+                    <div className="col-span-2">
+                        <label className="block text-s
 
                 {activeTab === 'teachers' && (
                     <div className="bg-white rounded-lg shadow p-6">
