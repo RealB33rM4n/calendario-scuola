@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -28,7 +28,6 @@ const Trash2Icon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="
 const EditIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>);
 const FileTextIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>);
 const DownloadIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>);
-
 const SchoolScheduleManager = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [teachers, setTeachers] = useState([
@@ -42,178 +41,220 @@ const SchoolScheduleManager = () => {
         { id: 4, name: 'Aula Piccola', capacity: 8, type: 'Didattica', hasProjector: false }
     ]);
     const [lessons, setLessons] = useState([]);
-
     const [courses, setCourses] = useState([]);
-const [showAddCourse, setShowAddCourse] = useState(false);
-const [showEditCourse, setShowEditCourse] = useState(false);
-const [editingCourse, setEditingCourse] = useState(null);
-const [newCourse, setNewCourse] = useState({
-    name: '',
-    totalHours: 0,
-    maxDailyHours: 4,
-    maxConsecutiveHours: 4,
-    startDate: '',
-    endDate: '',
-    subjects: [],
-    stageStartDate: '',
-    stageEndDate: ''
-});
-
-const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-
-const formatDate = (date) => {
-    const d = new Date(date);
-    return d.toISOString().split('T')[0];
-};
-
-const addCourse = () => {
-    if (newCourse.name && newCourse.totalHours && newCourse.startDate && newCourse.endDate) {
-        const course = {
-            ...newCourse,
-            id: Date.now(),
-            totalHours: parseInt(newCourse.totalHours),
-            maxDailyHours: parseInt(newCourse.maxDailyHours),
-            maxConsecutiveHours: parseInt(newCourse.maxConsecutiveHours)
-        };
-        setCourses([...courses, course]);
-        setNewCourse({
-            name: '',
-            totalHours: 0,
-            maxDailyHours: 4,
-            maxConsecutiveHours: 4,
-            startDate: '',
-            endDate: '',
-            subjects: [],
-            stageStartDate: '',
-            stageEndDate: ''
-        });
-        setShowAddCourse(false);
-    }
-};
-
-const startEditCourse = (course) => {
-    setEditingCourse({...course});
-    setShowEditCourse(true);
-};
-
-const updateCourse = () => {
-    if (editingCourse.name && editingCourse.totalHours && editingCourse.startDate && editingCourse.endDate) {
-        setCourses(courses.map(c => c.id === editingCourse.id ? {
-            ...editingCourse,
-            totalHours: parseInt(editingCourse.totalHours),
-            maxDailyHours: parseInt(editingCourse.maxDailyHours),
-            maxConsecutiveHours: parseInt(editingCourse.maxConsecutiveHours)
-        } : c));
-        setShowEditCourse(false);
-        setEditingCourse(null);
-    }
-};
-
-const deleteCourse = (id) => {
-    if (window.confirm('Sei sicuro di voler eliminare questo corso?')) {
-        setCourses(courses.filter(c => c.id !== id));
-        setLessons(lessons.filter(l => l.courseId !== id));
-    }
-};
-
-const addSubjectToCourse = (courseState, setCourseState) => {
-    const newSubjects = [...courseState.subjects, { name: '', hours: 0 }];
-    setCourseState({...courseState, subjects: newSubjects});
-};
-
-const updateSubject = (courseState, setCourseState, index, field, value) => {
-    const newSubjects = [...courseState.subjects];
-    newSubjects[index][field] = field === 'hours' ? parseInt(value) || 0 : value;
-    setCourseState({...courseState, subjects: newSubjects});
-};
-
-const removeSubject = (courseState, setCourseState, index) => {
-    const newSubjects = courseState.subjects.filter((_, i) => i !== index);
-    setCourseState({...courseState, subjects: newSubjects});
-};
-
-const autoScheduleCourse = (course) => {
-    if (!course.startDate || !course.endDate) {
-        alert('Il corso deve avere una data di inizio e fine');
-        return;
-    }
-
-    const newLessons = [];
-    const startDate = new Date(course.startDate);
-    const endDate = new Date(course.endDate);
-    const stageStart = course.stageStartDate ? new Date(course.stageStartDate) : null;
-    const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
-
-    let currentDate = new Date(startDate);
-    let totalScheduledHours = 0;
-    let subjectIndex = 0;
-    let currentSubjectHours = 0;
-
-    const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
-
-    while (totalScheduledHours < course.totalHours && currentDate <= endDate) {
-        const dayOfWeek = currentDate.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            currentDate.setDate(currentDate.getDate() + 1);
-            continue;
-        }
-
-        if (stageStart && stageEnd && currentDate >= stageStart && currentDate <= stageEnd) {
-            currentDate.setDate(currentDate.getDate() + 1);
-            continue;
-        }
-
-        const remainingHours = course.totalHours - totalScheduledHours;
-        const todayHours = Math.min(course.maxDailyHours, remainingHours);
-
-        if (todayHours > 0 && subjectIndex < subjects.length) {
-            const currentSubject = subjects[subjectIndex];
-            const subjectRemainingHours = currentSubject.hours - currentSubjectHours;
-            const hoursToSchedule = Math.min(todayHours, subjectRemainingHours);
-
-            const teacher = teachers.find(t => t.subject.toLowerCase().includes(currentSubject.name.toLowerCase()) || currentSubject.name.toLowerCase().includes(t.subject.toLowerCase())) || teachers[0];
-            const room = rooms.find(r => r.capacity >= 20) || rooms[0];
-
-            if (teacher && room) {
-                newLessons.push({
-                    id: Date.now() + newLessons.length,
-                    teacherId: teacher.id,
-                    roomId: room.id,
-                    date: formatDate(currentDate),
-                    dayOfWeek: italianDays[currentDate.getDay()],
-                    startTime: '09:00',
-                    duration: Math.min(hoursToSchedule, course.maxConsecutiveHours),
-                    subject: currentSubject.name,
-                    courseId: course.id
-                });
-
-                totalScheduledHours += hoursToSchedule;
-                currentSubjectHours += hoursToSchedule;
-
-                if (currentSubjectHours >= currentSubject.hours) {
-                    subjectIndex++;
-                    currentSubjectHours = 0;
-                }
-            }
-        }
-
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    if (newLessons.length > 0) {
-        setLessons([...lessons, ...newLessons]);
-        alert(`Corso calendarizzato! Create ${newLessons.length} lezioni per un totale di ${totalScheduledHours} ore.`);
-    } else {
-        alert('Impossibile calendarizzare il corso. Verifica le date e la disponibilità.');
-    }
-};
-    
+    const [showAddCourse, setShowAddCourse] = useState(false);
+    const [showEditCourse, setShowEditCourse] = useState(false);
+    const [editingCourse, setEditingCourse] = useState(null);
+    const [showAddLesson, setShowAddLesson] = useState(false);
+    const [showEditLesson, setShowEditLesson] = useState(false);
+    const [editingLesson, setEditingLesson] = useState(null);
     const [showAddTeacher, setShowAddTeacher] = useState(false);
     const [showAddRoom, setShowAddRoom] = useState(false);
     const [showEditRoom, setShowEditRoom] = useState(false);
     const [editingRoom, setEditingRoom] = useState(null);
+    const [viewMode, setViewMode] = useState('week');
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    
+    const [newCourse, setNewCourse] = useState({
+        name: '',
+        totalHours: 0,
+        maxDailyHours: 4,
+        maxConsecutiveHours: 4,
+        startDate: '',
+        endDate: '',
+        subjects: [],
+        stageStartDate: '',
+        stageEndDate: ''
+    });
+    const [newLesson, setNewLesson] = useState({
+        teacherId: '',
+        roomId: '',
+        date: new Date().toISOString().split('T')[0],
+        startTime: '09:00',
+        duration: 1,
+        subject: ''
+    });
     const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subject: '' });
     const [newRoom, setNewRoom] = useState({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
+
+    const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+
+    const formatDate = (date) => {
+        const d = new Date(date);
+        return d.toISOString().split('T')[0];
+    };
+
+    const addCourse = () => {
+        if (newCourse.name && newCourse.totalHours && newCourse.startDate && newCourse.endDate) {
+            const course = {
+                ...newCourse,
+                id: Date.now(),
+                totalHours: parseInt(newCourse.totalHours),
+                maxDailyHours: parseInt(newCourse.maxDailyHours),
+                maxConsecutiveHours: parseInt(newCourse.maxConsecutiveHours)
+            };
+            setCourses([...courses, course]);
+            setNewCourse({
+                name: '',
+                totalHours: 0,
+                maxDailyHours: 4,
+                maxConsecutiveHours: 4,
+                startDate: '',
+                endDate: '',
+                subjects: [],
+                stageStartDate: '',
+                stageEndDate: ''
+            });
+            setShowAddCourse(false);
+        }
+    };
+
+    const startEditCourse = (course) => {
+        setEditingCourse({...course});
+        setShowEditCourse(true);
+    };
+
+    const updateCourse = () => {
+        if (editingCourse.name && editingCourse.totalHours && editingCourse.startDate && editingCourse.endDate) {
+            setCourses(courses.map(c => c.id === editingCourse.id ? {
+                ...editingCourse,
+                totalHours: parseInt(editingCourse.totalHours),
+                maxDailyHours: parseInt(editingCourse.maxDailyHours),
+                maxConsecutiveHours: parseInt(editingCourse.maxConsecutiveHours)
+            } : c));
+            setShowEditCourse(false);
+            setEditingCourse(null);
+        }
+    };
+
+    const deleteCourse = (id) => {
+        if (window.confirm('Sei sicuro di voler eliminare questo corso?')) {
+            setCourses(courses.filter(c => c.id !== id));
+            setLessons(lessons.filter(l => l.courseId !== id));
+        }
+    };
+
+    const addSubjectToCourse = (courseState, setCourseState) => {
+        const newSubjects = [...courseState.subjects, { name: '', hours: 0 }];
+        setCourseState({...courseState, subjects: newSubjects});
+    };
+
+    const updateSubject = (courseState, setCourseState, index, field, value) => {
+        const newSubjects = [...courseState.subjects];
+        newSubjects[index][field] = field === 'hours' ? parseInt(value) || 0 : value;
+        setCourseState({...courseState, subjects: newSubjects});
+    };
+
+    const removeSubject = (courseState, setCourseState, index) => {
+        const newSubjects = courseState.subjects.filter((_, i) => i !== index);
+        setCourseState({...courseState, subjects: newSubjects});
+    };
+
+    const autoScheduleCourse = (course) => {
+        if (!course.startDate || !course.endDate) {
+            alert('Il corso deve avere una data di inizio e fine');
+            return;
+        }
+
+        const newLessons = [];
+        const startDate = new Date(course.startDate);
+        const endDate = new Date(course.endDate);
+        const stageStart = course.stageStartDate ? new Date(course.stageStartDate) : null;
+        const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
+
+        let currentDate = new Date(startDate);
+        let totalScheduledHours = 0;
+        let subjectIndex = 0;
+        let currentSubjectHours = 0;
+
+        const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
+
+        while (totalScheduledHours < course.totalHours && currentDate <= endDate) {
+            const dayOfWeek = currentDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            if (stageStart && stageEnd && currentDate >= stageStart && currentDate <= stageEnd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            const remainingHours = course.totalHours - totalScheduledHours;
+            const todayHours = Math.min(course.maxDailyHours, remainingHours);
+
+            if (todayHours > 0 && subjectIndex < subjects.length) {
+                const currentSubject = subjects[subjectIndex];
+                const subjectRemainingHours = currentSubject.hours - currentSubjectHours;
+                const hoursToSchedule = Math.min(todayHours, subjectRemainingHours);
+
+                const teacher = teachers.find(t => t.subject.toLowerCase().includes(currentSubject.name.toLowerCase()) || currentSubject.name.toLowerCase().includes(t.subject.toLowerCase())) || teachers[0];
+                const room = rooms.find(r => r.capacity >= 20) || rooms[0];
+
+                if (teacher && room) {
+                    newLessons.push({
+                        id: Date.now() + newLessons.length,
+                        teacherId: teacher.id,
+                        roomId: room.id,
+                        date: formatDate(currentDate),
+                        dayOfWeek: italianDays[currentDate.getDay()],
+                        startTime: '09:00',
+                        duration: Math.min(hoursToSchedule, course.maxConsecutiveHours),
+                        subject: currentSubject.name,
+                        courseId: course.id
+                    });
+
+                    totalScheduledHours += hoursToSchedule;
+                    currentSubjectHours += hoursToSchedule;
+
+                    if (currentSubjectHours >= currentSubject.hours) {
+                        subjectIndex++;
+                        currentSubjectHours = 0;
+                    }
+                }
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (newLessons.length > 0) {
+            setLessons([...lessons, ...newLessons]);
+            alert(`Corso calendarizzato! Create ${newLessons.length} lezioni per un totale di ${totalScheduledHours} ore.`);
+        } else {
+            alert('Impossibile calendarizzare il corso.');
+        }
+    };
+
+    const addLesson = () => {
+        if (newLesson.teacherId && newLesson.roomId && newLesson.subject && newLesson.date) {
+            const lessonDate = new Date(newLesson.date);
+            const dayOfWeek = italianDays[lessonDate.getDay()];
+            setLessons([...lessons, { 
+                ...newLesson, 
+                id: Date.now(),
+                dayOfWeek: dayOfWeek,
+                teacherId: parseInt(newLesson.teacherId),
+                roomId: parseInt(newLesson.roomId),
+                duration: parseInt(newLesson.duration)
+            }]);
+            setNewLesson({
+                teacherId: '',
+                roomId: '',
+                date: new Date().toISOString().split('T')[0],
+                startTime: '09:00',
+                duration: 1,
+                subject: ''
+            });
+            setShowAddLesson(false);
+        }
+    };
+
+    const deleteLesson = (id) => {
+        if (window.confirm('Sei sicuro?')) {
+            setLessons(lessons.filter(l => l.id !== id));
+        }
+    };
 
     const addTeacher = () => {
         if (newTeacher.name && newTeacher.email) {
@@ -255,6 +296,7 @@ const autoScheduleCourse = (course) => {
             setRooms(rooms.filter(r => r.id !== id));
         }
     };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -279,26 +321,150 @@ const autoScheduleCourse = (course) => {
                 </div>
 
                 {activeTab === 'dashboard' && (
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
-                                <div className="text-4xl font-bold text-blue-600">{teachers.length}</div>
-                                <div className="text-gray-600 mt-2">Insegnanti</div>
-                            </div>
-                            <div className="border-2 border-green-500 rounded-lg p-6 text-center">
-                                <div className="text-4xl font-bold text-green-600">{rooms.length}</div>
-                                <div className="text-gray-600 mt-2">Aule</div>
-                            </div>
-                            <div className="border-2 border-purple-500 rounded-lg p-6 text-center">
-                                <div className="text-4xl font-bold text-purple-600">{lessons.length}</div>
-                                <div className="text-gray-600 mt-2">Lezioni</div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+    <div>
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-800">Calendario e Lezioni</h2>
+                <div className="flex gap-2">
+                    <button onClick={() => setViewMode('week')} className={`px-4 py-2 rounded ${viewMode === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Settimana</button>
+                    <button onClick={() => setViewMode('month')} className={`px-4 py-2 rounded ${viewMode === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Mese</button>
+                </div>
+            </div>
 
-             {activeTab === 'courses' && (
+            {viewMode === 'week' && (
+                <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr>
+                                <th className="border p-2 bg-gray-100">Ora</th>
+                                {['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'].map(day => (
+                                    <th key={day} className="border p-2 bg-gray-100">{day}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Array.from({length: 10}, (_, i) => i + 8).map(hour => (
+                                <tr key={hour}>
+                                    <td className="border p-2 text-center font-semibold bg-gray-50">{hour}:00</td>
+                                    {['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'].map(day => {
+                                        const lesson = lessons.find(l => l.dayOfWeek === day && parseInt(l.startTime.split(':')[0]) === hour);
+                                        const teacher = lesson ? teachers.find(t => t.id === lesson.teacherId) : null;
+                                        const room = lesson ? rooms.find(r => r.id === lesson.roomId) : null;
+                                        return (
+                                            <td key={day} className={`border p-2 ${lesson ? 'bg-blue-100' : ''}`}>
+                                                {lesson && (
+                                                    <div className="text-xs">
+                                                        <div className="font-bold">{lesson.subject}</div>
+                                                        <div className="text-gray-600">{teacher?.name}</div>
+                                                        <div className="text-gray-500">{room?.name}</div>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {viewMode === 'month' && (
+                <div className="grid grid-cols-7 gap-1">
+                    {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                        <div key={day} className="border p-2 bg-gray-100 text-center font-semibold text-sm">{day}</div>
+                    ))}
+                    {Array.from({length: 35}, (_, i) => i + 1).map(day => {
+                        const dayLessons = lessons.filter(l => new Date(l.date).getDate() === day);
+                        return (
+                            <div key={day} className="border p-2 min-h-24 bg-white">
+                                <div className="font-semibold text-sm mb-1">{day}</div>
+                                {dayLessons.map(lesson => (
+                                    <div key={lesson.id} className="text-xs p-1 mb-1 bg-blue-100 rounded">
+                                        {lesson.startTime} {lesson.subject}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Gestione Lezioni</h2>
+                <button onClick={() => setShowAddLesson(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <PlusIcon />Aggiungi Lezione
+                </button>
+            </div>
+
+            {showAddLesson && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <h3 className="font-bold mb-4">Nuova Lezione</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <select value={newLesson.teacherId} onChange={(e) => setNewLesson({...newLesson, teacherId: e.target.value})} className="p-2 border rounded">
+                            <option value="">Seleziona Insegnante</option>
+                            {teachers.map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                        </select>
+                        <select value={newLesson.roomId} onChange={(e) => setNewLesson({...newLesson, roomId: e.target.value})} className="p-2 border rounded">
+                            <option value="">Seleziona Aula</option>
+                            {rooms.map(r => (<option key={r.id} value={r.id}>{r.name}</option>))}
+                        </select>
+                        <input type="date" value={newLesson.date} onChange={(e) => setNewLesson({...newLesson, date: e.target.value})} className="p-2 border rounded"/>
+                        <input type="time" value={newLesson.startTime} onChange={(e) => setNewLesson({...newLesson, startTime: e.target.value})} className="p-2 border rounded"/>
+                        <input type="number" min="1" max="8" value={newLesson.duration} onChange={(e) => setNewLesson({...newLesson, duration: e.target.value})} placeholder="Durata (ore)" className="p-2 border rounded"/>
+                        <input type="text" value={newLesson.subject} onChange={(e) => setNewLesson({...newLesson, subject: e.target.value})} placeholder="Materia" className="p-2 border rounded"/>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                        <button onClick={addLesson} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                        <button onClick={() => setShowAddLesson(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                    </div>
+                </div>
+            )}
+
+            <div className="space-y-2">
+                {lessons.map(lesson => {
+                    const teacher = teachers.find(t => t.id === lesson.teacherId);
+                    const room = rooms.find(r => r.id === lesson.roomId);
+                    return (
+                        <div key={lesson.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <div className="font-semibold">{lesson.subject}</div>
+                                <div className="text-sm text-gray-600">
+                                    {teacher?.name} - {lesson.date} {lesson.startTime} ({lesson.duration}h) - {room?.name}
+                                </div>
+                            </div>
+                            <button onClick={() => deleteLesson(lesson.id)} className="text-red-600 hover:text-red-800">
+                                <Trash2Icon />
+                            </button>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold mb-4">Statistiche</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="border-2 border-blue-500 rounded-lg p-6 text-center">
+                    <div className="text-4xl font-bold text-blue-600">{teachers.length}</div>
+                    <div className="text-gray-600 mt-2">Insegnanti</div>
+                </div>
+                <div className="border-2 border-green-500 rounded-lg p-6 text-center">
+                    <div className="text-4xl font-bold text-green-600">{rooms.length}</div>
+                    <div className="text-gray-600 mt-2">Aule</div>
+                </div>
+                <div className="border-2 border-purple-500 rounded-lg p-6 text-center">
+                    <div className="text-4xl font-bold text-purple-600">{lessons.length}</div>
+                    <div className="text-gray-600 mt-2">Lezioni</div>
+                </div>
+            </div>
+        </div>
+    </div>
+)}
+
+{activeTab === 'courses' && (
     <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Gestione Corsi</h2>
@@ -312,7 +478,7 @@ const autoScheduleCourse = (course) => {
         </div>
 
         {showAddCourse && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg mb-6 border-2 border-green-300">
                 <h3 className="font-bold mb-4">Nuovo Corso</h3>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                     <input type="text" value={newCourse.name} onChange={(e) => setNewCourse({...newCourse, name: e.target.value})} placeholder="Nome corso" className="p-2 border rounded col-span-2"/>
@@ -328,7 +494,174 @@ const autoScheduleCourse = (course) => {
                         </div>
                     </div>
                     <div className="col-span-2">
-                        <label className="block text-s
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Stage (opzionale)</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <input type="date" value={newCourse.stageStartDate} onChange={(e) => setNewCourse({...newCourse, stageStartDate: e.target.value})} placeholder="Inizio stage" className="p-2 border rounded"/>
+                            <input type="date" value={newCourse.stageEndDate} onChange={(e) => setNewCourse({...newCourse, stageEndDate: e.target.value})} placeholder="Fine stage" className="p-2 border rounded"/>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-gray-700">Materie del corso (opzionale)</label>
+                        <button onClick={() => addSubjectToCourse(newCourse, setNewCourse)} className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">+ Aggiungi Materia</button>
+                    </div>
+                    <div className="space-y-2">
+                        {newCourse.subjects.map((subject, index) => (
+                            <div key={index} className="flex gap-2">
+                                <input type="text" value={subject.name} onChange={(e) => updateSubject(newCourse, setNewCourse, index, 'name', e.target.value)} placeholder="Nome materia" className="flex-1 p-2 border rounded"/>
+                                <input type="number" min="1" value={subject.hours} onChange={(e) => updateSubject(newCourse, setNewCourse, index, 'hours', e.target.value)} placeholder="Ore" className="w-24 p-2 border rounded"/>
+                                <button onClick={() => removeSubject(newCourse, setNewCourse, index)} className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"><Trash2Icon /></button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <button onClick={addCourse} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                    <button onClick={() => setShowAddCourse(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                </div>
+            </div>
+        )}
+
+        {showEditCourse && editingCourse && (
+    <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-400">
+        <h3 className="font-bold mb-4 text-blue-800">Modifica Corso</h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+            <input type="text" value={editingCourse.name} onChange={(e) => setEditingCourse({...editingCourse, name: e.target.value})} placeholder="Nome corso" className="p-2 border rounded col-span-2"/>
+            <input type="number" min="1" value={editingCourse.totalHours} onChange={(e) => setEditingCourse({...editingCourse, totalHours: e.target.value})} placeholder="Totale ore" className="p-2 border rounded"/>
+            <input type="number" min="1" max="8" value={editingCourse.maxDailyHours} onChange={(e) => setEditingCourse({...editingCourse, maxDailyHours: e.target.value})} placeholder="Max ore giornaliere" className="p-2 border rounded"/>
+            <input type="number" min="1" max="8" value={editingCourse.maxConsecutiveHours} onChange={(e) => setEditingCourse({...editingCourse, maxConsecutiveHours: e.target.value})} placeholder="Max ore consecutive" className="p-2 border rounded"/>
+            <div></div>
+            <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date corso</label>
+                <div className="grid grid-cols-2 gap-4">
+                    <input type="date" value={editingCourse.startDate} onChange={(e) => setEditingCourse({...editingCourse, startDate: e.target.value})} className="p-2 border rounded"/>
+                    <input type="date" value={editingCourse.endDate} onChange={(e) => setEditingCourse({...editingCourse, endDate: e.target.value})} className="p-2 border rounded"/>
+                </div>
+            </div>
+            <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stage (opzionale)</label>
+                <div className="grid grid-cols-2 gap-4">
+                    <input type="date" value={editingCourse.stageStartDate || ''} onChange={(e) => setEditingCourse({...editingCourse, stageStartDate: e.target.value})} className="p-2 border rounded"/>
+                    <input type="date" value={editingCourse.stageEndDate || ''} onChange={(e) => setEditingCourse({...editingCourse, stageEndDate: e.target.value})} className="p-2 border rounded"/>
+                </div>
+            </div>
+        </div>
+
+        <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">Materie del corso</label>
+                <button onClick={() => addSubjectToCourse(editingCourse, setEditingCourse)} className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">+ Aggiungi Materia</button>
+            </div>
+            <div className="space-y-2">
+                {editingCourse.subjects.map((subject, index) => (
+                    <div key={index} className="flex gap-2">
+                        <input type="text" value={subject.name} onChange={(e) => updateSubject(editingCourse, setEditingCourse, index, 'name', e.target.value)} placeholder="Nome materia" className="flex-1 p-2 border rounded"/>
+                        <input type="number" min="1" value={subject.hours} onChange={(e) => updateSubject(editingCourse, setEditingCourse, index, 'hours', e.target.value)} placeholder="Ore" className="w-24 p-2 border rounded"/>
+                        <button onClick={() => removeSubject(editingCourse, setEditingCourse, index)} className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"><Trash2Icon /></button>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        <div className="flex gap-2">
+            <button onClick={updateCourse} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
+            <button onClick={() => {setShowEditCourse(false); setEditingCourse(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+        </div>
+    </div>
+)}
+
+        <div className="grid grid-cols-1 gap-6">
+           {courses.map((course, index) => {
+              const courseLessons = lessons.filter(l => l.courseId === course.id);
+              const scheduledHours = courseLessons.reduce((sum, l) => sum + l.duration, 0);
+              const progress = (scheduledHours / course.totalHours) * 100;
+    
+              const colors = [
+                  { bg: 'bg-blue-50', border: 'border-blue-300', badge: 'bg-blue-100 text-blue-800', hover: 'hover:border-blue-500' },
+                  { bg: 'bg-green-50', border: 'border-green-300', badge: 'bg-green-100 text-green-800', hover: 'hover:border-green-500' },
+                  { bg: 'bg-purple-50', border: 'border-purple-300', badge: 'bg-purple-100 text-purple-800', hover: 'hover:border-purple-500' },
+                  { bg: 'bg-pink-50', border: 'border-pink-300', badge: 'bg-pink-100 text-pink-800', hover: 'hover:border-pink-500' },
+                  { bg: 'bg-orange-50', border: 'border-orange-300', badge: 'bg-orange-100 text-orange-800', hover: 'hover:border-orange-500' },
+                  { bg: 'bg-cyan-50', border: 'border-cyan-300', badge: 'bg-cyan-100 text-cyan-800', hover: 'hover:border-cyan-500' },
+                  { bg: 'bg-red-50', border: 'border-red-300', badge: 'bg-red-100 text-red-800', hover: 'hover:border-red-500' },
+                  { bg: 'bg-indigo-50', border: 'border-indigo-300', badge: 'bg-indigo-100 text-indigo-800', hover: 'hover:border-indigo-500' }
+                ];
+                 const color = colors[index % colors.length];
+    
+    return (
+        <div key={course.id} className={`border-2 rounded-lg p-6 transition ${color.bg} ${color.border} ${color.hover}`}>
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex-1">
+                                <h3 className="text-xl font-bold text-gray-800">{course.name}</h3>
+                                <div className="flex gap-2 mt-2 flex-wrap">
+    <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>{course.totalHours}h totali</span>
+    <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>Max {course.maxDailyHours}h/giorno</span>
+    <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>Max {course.maxConsecutiveHours}h consecutive</span>
+</div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p className="text-sm text-gray-600"><strong>Inizio:</strong> {new Date(course.startDate).toLocaleDateString('it-IT')}</p>
+                                <p className="text-sm text-gray-600"><strong>Fine:</strong> {new Date(course.endDate).toLocaleDateString('it-IT')}</p>
+                            </div>
+                            {course.stageStartDate && course.stageEndDate && (
+                                <div>
+                                    <p className="text-sm text-orange-600"><strong>Stage:</strong> {new Date(course.stageStartDate).toLocaleDateString('it-IT')} - {new Date(course.stageEndDate).toLocaleDateString('it-IT')}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {course.subjects.length > 0 && (
+                            <div className="mb-4">
+                                <p className="text-sm font-semibold text-gray-700 mb-2">Materie:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {course.subjects.map((subject, idx) => (
+                                        <span key={idx} className="text-sm px-2 py-1 bg-gray-100 rounded">{subject.name} ({subject.hours}h)</span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mb-4">
+                            <div className="flex justify-between text-sm mb-1">
+                                <span className="font-semibold">Progresso calendarizzazione:</span>
+                                <span>{scheduledHours}h / {course.totalHours}h ({progress.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="bg-blue-600 h-2 rounded-full transition-all" style={{width: `${Math.min(progress, 100)}%`}}></div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{courseLessons.length} lezioni create</p>
+                        </div>
+
+                       <div className="flex gap-2 pt-4 border-t">
+    <button onClick={() => autoScheduleCourse(course)} disabled={scheduledHours >= course.totalHours} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400">
+        <CalendarIcon />{scheduledHours >= course.totalHours ? 'Completato' : 'Auto-Calendarizza'}
+    </button>
+    <button onClick={() => startEditCourse(course)} className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <EditIcon />Modifica
+    </button>
+    <button onClick={() => deleteCourse(course.id)} className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+        <Trash2Icon />Elimina
+    </button>
+</div>
+                    </div>
+                );
+            })}
+            {courses.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                    <p className="text-lg mb-2">Nessun corso creato</p>
+                    <p className="text-sm">Clicca su "Aggiungi Corso" per iniziare</p>
+                </div>
+            )}
+        </div>
+    </div>
+)}
+)}
 
                 {activeTab === 'teachers' && (
                     <div className="bg-white rounded-lg shadow p-6">
