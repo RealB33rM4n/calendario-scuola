@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -26,9 +26,7 @@ const CourseIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="
 const PlusIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>);
 const Trash2Icon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 4 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>);
 const EditIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>);
-const CopyIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>);
-const FileTextIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>);
-const DownloadIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>);
+
 const SchoolScheduleManager = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [teachers, setTeachers] = useState([
@@ -102,7 +100,7 @@ const SchoolScheduleManager = () => {
 
 const navigateMonth = (direction) => {
     const newDate = new Date(selectedDate);
-    newDate.setDate(1); // Imposta sempre al primo giorno per evitare overflow
+    newDate.setDate(1);
     newDate.setMonth(newDate.getMonth() + direction);
     setSelectedDate(newDate);
 };
@@ -110,15 +108,11 @@ const navigateMonth = (direction) => {
 const getWeekDates = () => {
     const curr = new Date(selectedDate);
     const dayOfWeek = curr.getDay();
-    // Se domenica (0), torna indietro di 6 giorni per arrivare a lunedì
-    // Altrimenti calcola la differenza per arrivare a lunedì (1)
     const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     
-    // Trova il lunedì della settimana
     const monday = new Date(curr);
     monday.setDate(curr.getDate() + diff);
     
-    // Genera i 6 giorni della settimana (Lun-Sab)
     const dates = [];
     for (let i = 0; i < 6; i++) {
         const date = new Date(monday);
@@ -134,18 +128,23 @@ const getMonthDays = () => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Lun=0
+    const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     
     const days = [];
-    // Giorni vuoti prima del primo giorno del mese
     for (let i = 0; i < startDayOfWeek; i++) {
         days.push(null);
     }
-    // Giorni del mese
     for (let i = 1; i <= daysInMonth; i++) {
         days.push(new Date(year, month, i));
     }
     return days;
+};
+
+const deleteLesson = (id) => {
+    if (window.confirm('Sei sicuro di voler eliminare questa lezione?')) {
+        setLessons(lessons.filter(l => l.id !== id));
+        setSelectedLesson(null);
+    }
 };
 
 const startEditLessonDetails = (lesson) => {
@@ -236,16 +235,6 @@ const updateLessonDetails = () => {
         }
     };
 
-    const duplicateCourse = (course) => {
-    const duplicatedCourse = {
-        ...course,
-        id: Date.now(),
-        name: course.name + ' COPIA'
-    };
-    setCourses([...courses, duplicatedCourse]);
-    alert(`Corso "${course.name}" duplicato con successo come "${duplicatedCourse.name}"!`);
-};
-
     const addSubjectToCourse = (courseState, setCourseState) => {
         const newSubjects = [...courseState.subjects, { name: '', hours: 0 }];
         setCourseState({...courseState, subjects: newSubjects});
@@ -279,199 +268,185 @@ const removeCourseTeacher = (courseState, setCourseState, index) => {
 };
 
     const autoScheduleCourse = (course) => {
-    if (!course.startDate || !course.endDate) {
-        alert('Il corso deve avere una data di inizio e fine');
-        return;
+        if (!course.startDate || !course.endDate) {
+            alert('Il corso deve avere una data di inizio e fine');
+            return;
+        }
+
+        const newLessons = [];
+        const startDate = new Date(course.startDate);
+        const endDate = new Date(course.endDate);
+        const stageStart = course.stageStartDate ? new Date(course.stageStartDate) : null;
+        const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
+
+        let currentDate = new Date(startDate);
+        let totalScheduledHours = 0;
+        let subjectIndex = 0;
+        let currentSubjectHours = 0;
+
+        const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
+
+        while (totalScheduledHours < course.totalHours && currentDate <= endDate) {
+            const dayOfWeek = currentDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            if (stageStart && stageEnd && currentDate >= stageStart && currentDate <= stageEnd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            const remainingHours = course.totalHours - totalScheduledHours;
+            const todayHours = Math.min(course.maxDailyHours, remainingHours);
+
+            
+            if (todayHours > 0 && subjectIndex < subjects.length) {
+    const currentSubject = subjects[subjectIndex];
+    const subjectRemainingHours = currentSubject.hours - currentSubjectHours;
+    const hoursToSchedule = Math.min(todayHours, subjectRemainingHours);
+
+    const room = rooms.find(r => r.capacity >= course.numberOfStudents);
+
+    if (!room) {
+        alert(`ERRORE: Nessuna aula disponibile con almeno ${course.numberOfStudents} posti. La calendarizzazione si ferma.`);
+        break;
     }
 
-    const newLessons = [];
-    const startDate = new Date(course.startDate);
-    const endDate = new Date(course.endDate);
-    const stageStart = course.stageStartDate ? new Date(course.stageStartDate) : null;
-    const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
-
-    let currentDate = new Date(startDate);
-    let totalScheduledHours = 0;
-    let subjectIndex = 0;
-    let currentSubjectHours = 0;
-
-    const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
-
-    while (totalScheduledHours < course.totalHours && currentDate <= endDate) {
-        const dayOfWeek = currentDate.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            currentDate.setDate(currentDate.getDate() + 1);
-            continue;
-        }
-
-        if (stageStart && stageEnd && currentDate >= stageStart && currentDate <= stageEnd) {
-            currentDate.setDate(currentDate.getDate() + 1);
-            continue;
-        }
-
-        const remainingHours = course.totalHours - totalScheduledHours;
-        // OBIETTIVO: almeno 6 ore al giorno quando possibile
-        const todayHours = Math.min(Math.max(course.maxDailyHours, 6), remainingHours);
-
-        if (todayHours > 0 && subjectIndex < subjects.length) {
-            const currentSubject = subjects[subjectIndex];
-            const subjectRemainingHours = currentSubject.hours - currentSubjectHours;
-            const hoursToSchedule = Math.min(todayHours, subjectRemainingHours);
-
-            const room = rooms.find(r => r.capacity >= course.numberOfStudents);
-
-            if (!room) {
-                alert(`ERRORE: Nessuna aula disponibile con almeno ${course.numberOfStudents} posti. La calendarizzazione si ferma.`);
+    const dateStr = formatDate(currentDate);
+    const existingLessonsToday = [...lessons, ...newLessons].filter(l => l.date === dateStr);
+    
+    const possibleStartTimes = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
+    
+    let hoursScheduledToday = 0;
+    const maxHoursToday = Math.min(course.maxDailyHours, hoursToSchedule);
+    
+    const teacherHoursScheduled = {};
+    if (course.teachers && course.teachers.length > 0) {
+        course.teachers.forEach(ct => {
+            teacherHoursScheduled[ct.teacherId] = 0;
+        });
+        
+        [...lessons, ...newLessons].forEach(lesson => {
+            if (lesson.courseId === course.id && teacherHoursScheduled[lesson.teacherId] !== undefined) {
+                teacherHoursScheduled[lesson.teacherId] += lesson.duration;
+            }
+        });
+    }
+    
+    for (let startTime of possibleStartTimes) {
+        if (hoursScheduledToday >= maxHoursToday) break;
+        
+        const startHour = parseInt(startTime.split(':')[0]);
+        const lessonDuration = Math.min(
+            course.maxConsecutiveHours,
+            maxHoursToday - hoursScheduledToday,
+            hoursToSchedule - hoursScheduledToday
+        );
+        const endHour = startHour + lessonDuration;
+        
+        let isRoomAvailable = true;
+        for (let existing of existingLessonsToday) {
+            const existingStart = parseInt(existing.startTime.split(':')[0]);
+            const existingEnd = existingStart + existing.duration;
+            
+            if ((startHour < existingEnd && endHour > existingStart)) {
+                isRoomAvailable = false;
                 break;
             }
-
-            const dateStr = formatDate(currentDate);
-            const existingLessonsToday = [...lessons, ...newLessons].filter(l => l.date === dateStr);
-            
-            // PAUSA PRANZO 13:00-14:00: escluso '13:00'
-            const possibleStartTimes = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
-            
-            let hoursScheduledToday = 0;
-            const maxHoursToday = Math.min(Math.max(course.maxDailyHours, 6), hoursToSchedule);
-            
-            const teacherHoursScheduled = {};
-            if (course.teachers && course.teachers.length > 0) {
-                course.teachers.forEach(ct => {
-                    teacherHoursScheduled[ct.teacherId] = 0;
-                });
+        }
+        
+        if (!isRoomAvailable) continue;
+        
+        let selectedTeacher = null;
+        
+        if (course.teachers && course.teachers.length > 0) {
+            for (let courseTeacher of course.teachers) {
+                const scheduledForThisTeacher = teacherHoursScheduled[courseTeacher.teacherId] || 0;
                 
-                [...lessons, ...newLessons].forEach(lesson => {
-                    if (lesson.courseId === course.id && teacherHoursScheduled[lesson.teacherId] !== undefined) {
-                        teacherHoursScheduled[lesson.teacherId] += lesson.duration;
-                    }
-                });
-            }
-            
-            for (let startTime of possibleStartTimes) {
-                if (hoursScheduledToday >= maxHoursToday) break;
+                if (scheduledForThisTeacher >= courseTeacher.hours) continue;
                 
-                const startHour = parseInt(startTime.split(':')[0]);
-                const lessonDuration = Math.min(
-                    course.maxConsecutiveHours,
-                    maxHoursToday - hoursScheduledToday,
-                    hoursToSchedule - hoursScheduledToday
-                );
-                const endHour = startHour + lessonDuration;
-                
-                // VERIFICA CHE LA LEZIONE NON INVADA LA PAUSA PRANZO 13:00-14:00
-                if (startHour < 14 && endHour > 13) {
-                    continue; // Salta questo slot perché invaderebbe la pausa pranzo
-                }
-                
-                let isRoomAvailable = true;
+                let teacherAvailable = true;
                 for (let existing of existingLessonsToday) {
-                    const existingStart = parseInt(existing.startTime.split(':')[0]);
-                    const existingEnd = existingStart + existing.duration;
-                    
-                    if ((startHour < existingEnd && endHour > existingStart)) {
-                        isRoomAvailable = false;
-                        break;
-                    }
-                }
-                
-                if (!isRoomAvailable) continue;
-                
-                let selectedTeacher = null;
-                
-                if (course.teachers && course.teachers.length > 0) {
-                    for (let courseTeacher of course.teachers) {
-                        const scheduledForThisTeacher = teacherHoursScheduled[courseTeacher.teacherId] || 0;
+                    if (existing.teacherId === courseTeacher.teacherId) {
+                        const existingStart = parseInt(existing.startTime.split(':')[0]);
+                        const existingEnd = existingStart + existing.duration;
                         
-                        if (scheduledForThisTeacher >= courseTeacher.hours) continue;
-                        
-                        let teacherAvailable = true;
-                        for (let existing of existingLessonsToday) {
-                            if (existing.teacherId === courseTeacher.teacherId) {
-                                const existingStart = parseInt(existing.startTime.split(':')[0]);
-                                const existingEnd = existingStart + existing.duration;
-                                
-                                // Lezioni consecutive stesso docente: OK, nessuna pausa necessaria
-                                if (existingEnd === startHour) {
-                                    continue;
-                                }
-                                
-                                // Altrimenti verifica sovrapposizione normale
-                                if ((startHour < existingEnd && endHour > existingStart)) {
-                                    teacherAvailable = false;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (teacherAvailable) {
-                            selectedTeacher = teachers.find(t => t.id === courseTeacher.teacherId);
+                        if ((startHour < existingEnd && endHour > existingStart)) {
+                            teacherAvailable = false;
                             break;
                         }
                     }
-                } else {
-                    selectedTeacher = teachers.find(t => 
-                        t.subject.toLowerCase().includes(currentSubject.name.toLowerCase()) || 
-                        currentSubject.name.toLowerCase().includes(t.subject.toLowerCase())
-                    ) || teachers[0];
                 }
                 
-                if (!selectedTeacher) {
-                    console.log(`Nessun docente disponibile per lo slot ${startTime}`);
-                    continue;
+                if (teacherAvailable) {
+                    selectedTeacher = teachers.find(t => t.id === courseTeacher.teacherId);
+                    break;
                 }
-                
-                const tempLesson = {
-                    teacherId: selectedTeacher.id,
-                    roomId: room.id,
-                    date: dateStr,
-                    dayOfWeek: italianDays[currentDate.getDay()],
-                    startTime: startTime,
-                    duration: lessonDuration,
-                    subject: currentSubject.name,
-                    courseId: course.id,
-                    numberOfStudents: course.numberOfStudents
-                };
+            }
+        } else {
+            selectedTeacher = teachers.find(t => 
+                t.subject.toLowerCase().includes(currentSubject.name.toLowerCase()) || 
+                currentSubject.name.toLowerCase().includes(t.subject.toLowerCase())
+            ) || teachers[0];
+        }
+        
+        if (!selectedTeacher) {
+            console.log(`Nessun docente disponibile per lo slot ${startTime}`);
+            continue;
+        }
+        
+        const tempLesson = {
+            teacherId: selectedTeacher.id,
+            roomId: room.id,
+            date: dateStr,
+            dayOfWeek: italianDays[currentDate.getDay()],
+            startTime: startTime,
+            duration: lessonDuration,
+            subject: currentSubject.name,
+            courseId: course.id,
+            numberOfStudents: course.numberOfStudents
+        };
 
-                const conflict = checkConflict(tempLesson);
-                if (!conflict) {
-                    newLessons.push({
-                        id: Date.now() + newLessons.length,
-                        ...tempLesson
-                    });
-                    
-                    existingLessonsToday.push(tempLesson);
-                    hoursScheduledToday += lessonDuration;
-                    totalScheduledHours += lessonDuration;
-                    currentSubjectHours += lessonDuration;
-                    
-                    if (teacherHoursScheduled[selectedTeacher.id] !== undefined) {
-                        teacherHoursScheduled[selectedTeacher.id] += lessonDuration;
-                    }
-                    
-                    if (currentSubjectHours >= currentSubject.hours) {
-                        subjectIndex++;
-                        currentSubjectHours = 0;
-                    }
-                }
+        const conflict = checkConflict(tempLesson);
+        if (!conflict) {
+            newLessons.push({
+                id: Date.now() + newLessons.length,
+                ...tempLesson
+            });
+            
+            existingLessonsToday.push(tempLesson);
+            hoursScheduledToday += lessonDuration;
+            totalScheduledHours += lessonDuration;
+            currentSubjectHours += lessonDuration;
+            
+            if (teacherHoursScheduled[selectedTeacher.id] !== undefined) {
+                teacherHoursScheduled[selectedTeacher.id] += lessonDuration;
             }
             
-            if (hoursScheduledToday === 0) {
-                console.log(`Impossibile schedulare lezioni per ${dateStr}`);
+            if (currentSubjectHours >= currentSubject.hours) {
+                subjectIndex++;
+                currentSubjectHours = 0;
             }
         }
-
-        currentDate.setDate(currentDate.getDate() + 1);
     }
-
-    if (newLessons.length > 0) {
-        setLessons([...lessons, ...newLessons]);
-        alert(`Corso calendarizzato! Create ${newLessons.length} lezioni per un totale di ${totalScheduledHours} ore.`);
-    } else {
-        alert('Impossibile calendarizzare il corso.');
+    
+    if (hoursScheduledToday === 0) {
+        console.log(`Impossibile schedulare lezioni per ${dateStr}`);
     }
-};
+}
 
-//inizio della funzione autoScheduleAllCourses
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (newLessons.length > 0) {
+            setLessons([...lessons, ...newLessons]);
+            alert(`Corso calendarizzato! Create ${newLessons.length} lezioni per un totale di ${totalScheduledHours} ore.`);
+        } else {
+            alert('Impossibile calendarizzare il corso.');
+        }
+    };
 
 const autoScheduleAllCourses = () => {
     if (courses.length === 0) {
@@ -516,11 +491,8 @@ const autoScheduleAllCourses = () => {
         
         const dateStr = formatDate(currentDate);
         const existingLessonsToday = newLessons.filter(l => l.date === dateStr);
-        
-        // PAUSA PRANZO 13:00-14:00: escluso '13:00'
         const possibleStartTimes = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
         
-        // Cerca di riempire almeno 6 ore al giorno alternando i corsi
         for (let course of courses) {
             const courseStart = new Date(course.startDate);
             const courseEnd = new Date(course.endDate);
@@ -544,14 +516,8 @@ const autoScheduleAllCourses = () => {
             for (let startTime of possibleStartTimes) {
                 const startHour = parseInt(startTime.split(':')[0]);
                 const remainingHours = course.totalHours - progress.totalScheduled;
-                // Prova a schedulare più ore possibili (fino a 3 ore consecutive)
-                const lessonDuration = Math.min(course.maxConsecutiveHours, remainingHours, 3);
+                const lessonDuration = Math.min(course.maxConsecutiveHours, remainingHours, 2);
                 const endHour = startHour + lessonDuration;
-                
-                // VERIFICA CHE LA LEZIONE NON INVADA LA PAUSA PRANZO 13:00-14:00
-                if (startHour < 14 && endHour > 13) {
-                    continue;
-                }
                 
                 let isAvailable = true;
                 for (let existing of existingLessonsToday) {
@@ -585,12 +551,6 @@ const autoScheduleAllCourses = () => {
                                 if (existing.teacherId === courseTeacher.teacherId) {
                                     const existingStart = parseInt(existing.startTime.split(':')[0]);
                                     const existingEnd = existingStart + existing.duration;
-                                    
-                                    // Lezioni consecutive stesso docente: OK
-                                    if (existingEnd === startHour) {
-                                        continue;
-                                    }
-                                    
                                     if ((startHour < existingEnd && endHour > existingStart)) {
                                         teacherAvailable = false;
                                         break;
@@ -651,9 +611,45 @@ const autoScheduleAllCourses = () => {
     }
 };
 
+    const checkConflict = (lesson) => {
+    const room = rooms.find(r => r.id === parseInt(lesson.roomId));
+    if (room && parseInt(lesson.numberOfStudents) > room.capacity) {
+        return `L'aula ${room.name} ha solo ${room.capacity} posti, ma il corso richiede ${lesson.numberOfStudents} studenti`;
+    }
+    return null;
+};
 
-//chiusura della funzione autoSCheduleAllCourse!
-
+   const addLesson = () => {
+    if (newLesson.teacherId && newLesson.roomId && newLesson.subject && newLesson.date && newLesson.numberOfStudents) {
+        const conflict = checkConflict(newLesson);
+        if (conflict) {
+            alert(`Errore: ${conflict}`);
+            return;
+        }
+        
+        const lessonDate = new Date(newLesson.date);
+        const dayOfWeek = italianDays[lessonDate.getDay()];
+        setLessons([...lessons, { 
+            ...newLesson, 
+            id: Date.now(),
+            dayOfWeek: dayOfWeek,
+            teacherId: parseInt(newLesson.teacherId),
+            roomId: parseInt(newLesson.roomId),
+            duration: parseInt(newLesson.duration),
+            numberOfStudents: parseInt(newLesson.numberOfStudents)
+        }]);
+        setNewLesson({
+            teacherId: '',
+            roomId: '',
+            date: new Date().toISOString().split('T')[0],
+            startTime: '09:00',
+            duration: 1,
+            subject: '',
+            numberOfStudents: ''
+        });
+        setShowAddLesson(false);
+    }
+};
 
     const addTeacher = () => {
         if (newTeacher.name && newTeacher.email) {
@@ -884,7 +880,6 @@ const autoScheduleAllCourses = () => {
                 </div>
             )}
 
-            {/* DETTAGLI LEZIONE SELEZIONATA */}
             {selectedLesson && !showEditLessonDetails && (
                 <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
                     <div className="flex justify-between items-start mb-4">
@@ -932,7 +927,6 @@ const autoScheduleAllCourses = () => {
                 </div>
             )}
 
-            {/* FORM MODIFICA LEZIONE */}
             {showEditLessonDetails && editingLesson && (
                 <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
                     <h3 className="text-xl font-bold text-yellow-900 mb-4">Modifica Lezione</h3>
@@ -1338,13 +1332,11 @@ const autoScheduleAllCourses = () => {
     <button onClick={() => startEditCourse(course)} className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
         <EditIcon />Modifica
     </button>
-    <button onClick={() => duplicateCourse(course)} className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-        <CopyIcon />Duplica
-    </button>
     <button onClick={() => deleteCourse(course.id)} className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700">
         <Trash2Icon />Elimina
     </button>
 </div>
+                    </div>
                 );
             })}
             {courses.length === 0 && (
