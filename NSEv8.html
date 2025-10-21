@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N.S.I. - Sistema Gestione Aule e Calendari</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        .lesson-block { transition: all 0.2s ease; }
+        .lesson-block:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+    const { useState } = React;
+
+const CalendarIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>);
+const UsersIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>);
+const MapPinIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>);
+const CourseIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>);
+const PlusIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>);
+const Trash2Icon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 4 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>);
+const EditIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>);
+
+const COURSE_COLORS = [
+    { bg: 'bg-red-500', text: 'text-white', border: 'border-red-600', light: 'bg-red-50', badge: 'bg-red-100 text-red-800' },
+    { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-600', light: 'bg-blue-50', badge: 'bg-blue-100 text-blue-800' },
+    { bg: 'bg-green-600', text: 'text-white', border: 'border-green-700', light: 'bg-green-50', badge: 'bg-green-100 text-green-800' },
+    { bg: 'bg-yellow-500', text: 'text-gray-900', border: 'border-yellow-600', light: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-800' },
+    { bg: 'bg-purple-600', text: 'text-white', border: 'border-purple-700', light: 'bg-purple-50', badge: 'bg-purple-100 text-purple-800' },
+    { bg: 'bg-pink-600', text: 'text-white', border: 'border-pink-700', light: 'bg-pink-50', badge: 'bg-pink-100 text-pink-800' },
+    { bg: 'bg-indigo-600', text: 'text-white', border: 'border-indigo-700', light: 'bg-indigo-50', badge: 'bg-indigo-100 text-indigo-800' },
+    { bg: 'bg-teal-600', text: 'text-white', border: 'border-teal-700', light: 'bg-teal-50', badge: 'bg-teal-100 text-teal-800' },
+    { bg: 'bg-orange-600', text: 'text-white', border: 'border-orange-700', light: 'bg-orange-50', badge: 'bg-orange-100 text-orange-800' },
+    { bg: 'bg-cyan-600', text: 'text-white', border: 'border-cyan-700', light: 'bg-cyan-50', badge: 'bg-cyan-100 text-cyan-800' }
+];
+
+const SchoolScheduleManager = () => {
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [teachers, setTeachers] = useState([
+        { id: 1, name: 'Andrea Adamoli', email: 'adamoli@scuola.it', subject: 'Gaming' },
+        { id: 2, name: 'Francesco Natali', email: 'natali@scuola.it', subject: 'Grafica' },
+        { id: 3, name: 'Francesco Acciai', email: 'acciai@scuola.it', subject: 'Informatica' },
+        { id: 4, name: 'Marco Guzzo', email: 'guzzo@scuola.it', subject: 'Programmazione' }
+    ]);
+    const [rooms, setRooms] = useState([
+        { id: 1, name: 'D. Calamandrei', capacity: 20, type: 'Informatica', hasProjector: true },
+        { id: 2, name: 'Don L. Milani', capacity: 28, type: 'Parrucchieri', hasProjector: true },
+        { id: 3, name: 'A. Turing', capacity: 25, type: 'Informatica', hasProjector: false },
+        { id: 4, name: 'Aula Piccola', capacity: 8, type: 'Didattica', hasProjector: false }
+    ]);
+    const [lessons, setLessons] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [viewMode, setViewMode] = useState('week');
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedLesson, setSelectedLesson] = useState(null);
+    
+    const [showAddCourse, setShowAddCourse] = useState(false);
+    const [showEditCourse, setShowEditCourse] = useState(false);
+    const [editingCourse, setEditingCourse] = useState(null);
+    const [showAddLesson, setShowAddLesson] = useState(false);
+    const [showEditLessonDetails, setShowEditLessonDetails] = useState(false);
+    const [editingLesson, setEditingLesson] = useState(null);
+    const [showAddTeacher, setShowAddTeacher] = useState(false);
+    const [showEditTeacher, setShowEditTeacher] = useState(false);
+    const [editingTeacher, setEditingTeacher] = useState(null);
+    const [showAddRoom, setShowAddRoom] = useState(false);
+    const [showEditRoom, setShowEditRoom] = useState(false);
+    const [editingRoom, setEditingRoom] = useState(null);
+
+    const [newCourse, setNewCourse] = useState({
+        name: '', totalHours: 0, maxDailyHours: 4, maxConsecutiveHours: 4,
+        startDate: '', endDate: '', subjects: [], teachers: [],
+        stageStartDate: '', stageEndDate: '', numberOfStudents: ''
+    });
+    const [newLesson, setNewLesson] = useState({
+        teacherId: '', roomId: '', date: new Date().toISOString().split('T')[0],
+        startTime: '09:00', duration: 1, subject: '', numberOfStudents: '', courseId: ''
+    });
+    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subject: '' });
+    const [newRoom, setNewRoom] = useState({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
+
+    const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+
+    const formatDate = (date) => new Date(date).toISOString().split('T')[0];
+
+    const getCourseColor = (courseId) => {
+        if (!courseId) return COURSE_COLORS[0];
+        return COURSE_COLORS[courseId % COURSE_COLORS.length];
+    };
+
+    const navigateWeek = (direction) => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(newDate.getDate() + (direction * 7));
+        setSelectedDate(newDate);
+    };
+
+    const navigateMonth = (direction) => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(1);
+        newDate.setMonth(newDate.getMonth() + direction);
+        setSelectedDate(newDate);
+    };
+
+    const getWeekDates = () => {
+        const curr = new Date(selectedDate);
+        const dayOfWeek = curr.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(curr);
+        monday.setDate(curr.getDate() + diff);
+        const dates = [];
+        for (let i = 0; i < 6; i++) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + i);
+            dates.push(date);
+        }
+        return dates;
+    };
+
+    const getMonthDays = () => {
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+        const days = [];
+        for (let i = 0; i < startDayOfWeek; i++) days.push(null);
+        for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+        return days;
+    };
+
+    // Calcola le ore già programmate per un corso
+    const getCourseScheduledHours = (courseId) => {
+        return lessons
+            .filter(l => l.courseId === courseId)
+            .reduce((sum, l) => sum + l.duration, 0);
+    };
+
+    // Calcola le ore rimanenti per un corso
+    const getCourseRemainingHours = (courseId) => {
+        const course = courses.find(c => c.id === courseId);
+        if (!course) return 0;
+        const scheduled = getCourseScheduledHours(courseId);
+        return Math.max(0, course.totalHours - scheduled);
+    };
+
+    const checkConflict = (lesson, existingLessons = lessons) => {
+        const room = rooms.find(r => r.id === parseInt(lesson.roomId));
+        if (room && parseInt(lesson.numberOfStudents) > room.capacity) {
+            return `L'aula ${room.name} ha solo ${room.capacity} posti, ma servono ${lesson.numberOfStudents} posti`;
+        }
+        
+        const lessonStart = parseInt(lesson.startTime.split(':')[0]);
+        const lessonEnd = lessonStart + parseInt(lesson.duration);
+        
+        for (let existing of existingLessons) {
+            if (lesson.id && existing.id === lesson.id) continue;
+            
+            if (existing.date === lesson.date && existing.teacherId === parseInt(lesson.teacherId)) {
+                const existingStart = parseInt(existing.startTime.split(':')[0]);
+                const existingEnd = existingStart + existing.duration;
+                
+                if ((lessonStart >= existingStart && lessonStart < existingEnd) ||
+                    (lessonEnd > existingStart && lessonEnd <= existingEnd) ||
+                    (lessonStart <= existingStart && lessonEnd >= existingEnd)) {
+                    const teacher = teachers.find(t => t.id === parseInt(lesson.teacherId));
+                    return `L'insegnante ${teacher?.name} ha già una lezione dalle ${existing.startTime} alle ${existingStart + existing.duration}:00`;
+                }
+            }
+        }
+        
+        return null;
+    };
+
+    const findNextAvailableSlot = (dateStr, startHour, duration, roomId, teacherId, existingLessons) => {
+        let currentHour = startHour;
+        while (currentHour < 18) {
+            if (currentHour === 13) { currentHour = 14; continue; }
+            let canFit = true;
+            let actualDuration = duration;
+            if (currentHour < 13 && currentHour + duration > 13) {
+                actualDuration = 13 - currentHour;
+            }
+            const endHour = currentHour + actualDuration;
+            
+            for (let lesson of existingLessons) {
+                if (lesson.date === dateStr) {
+                    const lessonStart = parseInt(lesson.startTime.split(':')[0]);
+                    const lessonEnd = lessonStart + lesson.duration;
+                    
+                    if (lesson.roomId === roomId && 
+                        ((currentHour >= lessonStart && currentHour < lessonEnd) ||
+                         (endHour > lessonStart && endHour <= lessonEnd) ||
+                         (currentHour <= lessonStart && endHour >= lessonEnd))) {
+                        canFit = false;
+                        break;
+                    }
+                    
+                    if (teacherId && lesson.teacherId === teacherId && 
+                        ((currentHour >= lessonStart && currentHour < lessonEnd) ||
+                         (endHour > lessonStart && endHour <= lessonEnd) ||
+                         (currentHour <= lessonStart && endHour >= lessonEnd))) {
+                        canFit = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (canFit) return { hour: currentHour, duration: actualDuration };
+            currentHour++;
+        }
+        return null;
+    };
+
+    const autoScheduleAllCourses = () => {
+        const incompleteCourses = courses.filter(c => {
+            const scheduled = getCourseScheduledHours(c.id);
+            return scheduled < c.totalHours;
+        });
+
+        if (incompleteCourses.length === 0) {
+            alert('✅ Tutti i corsi sono già completamente calendarizzati!');
+            return;
+        }
+
+        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\nIl sistema ottimizzerà giornate, docenti e aule per massimizzare l'efficienza.`)) {
+            return;
+        }
+
+        const newLessons = [];
+        
+        // Prepara la struttura dei corsi con le loro info
+        const coursesData = incompleteCourses.map(course => {
+            const scheduled = getCourseScheduledHours(course.id);
+            return {
+                ...course,
+                remainingHours: course.totalHours - scheduled,
+                currentSubjectIndex: 0,
+                currentSubjectHours: 0
+            };
+        }).filter(c => c.remainingHours > 0);
+
+        if (coursesData.length === 0) {
+            alert('Nessun corso da calendarizzare.');
+            return;
+        }
+
+        // Trova la data più lontana tra tutti i corsi
+        let latestEndDate = new Date(coursesData[0].endDate);
+        coursesData.forEach(c => {
+            const endDate = new Date(c.endDate);
+            if (endDate > latestEndDate) latestEndDate = endDate;
+        });
+
+        let currentDate = new Date();
+        let totalScheduledHours = 0;
+        let daysProcessed = 0;
+        const maxDays = 365;
+
+        while (coursesData.some(c => c.remainingHours > 0) && currentDate <= latestEndDate && daysProcessed < maxDays) {
+            const dayOfWeek = currentDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+            daysProcessed++;
+
+            const dateStr = formatDate(currentDate);
+            const existingLessonsToday = [...lessons, ...newLessons].filter(l => l.date === dateStr);
+            
+            // Traccia le ore giornaliere per docente
+            const teacherDailyHours = {};
+            teachers.forEach(t => { teacherDailyHours[t.id] = 0; });
+            existingLessonsToday.forEach(l => {
+                if (teacherDailyHours[l.teacherId] !== undefined) {
+                    teacherDailyHours[l.teacherId] += l.duration;
+                }
+            });
+
+            // Trova i corsi attivi per questa data
+            const activeCourses = coursesData.filter(c => {
+                const start = new Date(c.startDate);
+                const end = new Date(c.endDate);
+                const current = new Date(dateStr);
+                if (current < start || current > end) return false;
+                if (c.stageStartDate && c.stageEndDate) {
+                    const stageStart = new Date(c.stageStartDate);
+                    const stageEnd = new Date(c.stageEndDate);
+                    if (current >= stageStart && current <= stageEnd) return false;
+                }
+                return c.remainingHours > 0;
+            });
+
+            if (activeCourses.length === 0) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            // Prova a riempire la giornata 9-13 e 14-18
+            let currentHour = 9;
+
+            while (currentHour < 18 && activeCourses.some(c => c.remainingHours > 0)) {
+                if (currentHour === 13) {
+                    currentHour = 14;
+                    continue;
+                }
+
+                let lessonCreated = false;
+
+                // Prova ogni corso attivo per questa fascia oraria
+                for (let course of activeCourses) {
+                    if (course.remainingHours <= 0) continue;
+
+                    // Verifica che il corso non abbia già raggiunto il limite giornaliero
+                    const courseHoursToday = existingLessonsToday
+                        .filter(l => l.courseId === course.id)
+                        .reduce((sum, l) => sum + l.duration, 0);
+                    
+                    if (courseHoursToday >= course.maxDailyHours) continue;
+
+                    // Trova materia corrente
+                    const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
+                    if (course.currentSubjectIndex >= subjects.length) continue;
+                    
+                    const currentSubject = subjects[course.currentSubjectIndex];
+                    const remainingSubjectHours = currentSubject.hours - course.currentSubjectHours;
+                    
+                    if (remainingSubjectHours <= 0) {
+                        course.currentSubjectIndex++;
+                        course.currentSubjectHours = 0;
+                        continue;
+                    }
+
+                    // Trova aula disponibile
+                    const room = rooms.find(r => r.capacity >= course.numberOfStudents);
+                    if (!room) continue;
+
+                    // Trova docente disponibile - priorità a chi ha fatto meno ore oggi
+                    let teachersList = [];
+
+                    if (course.teachers && course.teachers.length > 0) {
+                        teachersList = course.teachers
+                            .map(ct => ({
+                                ...ct,
+                                teacher: teachers.find(t => t.id === ct.teacherId),
+                                hoursToday: teacherDailyHours[ct.teacherId] || 0
+                            }))
+                            .filter(ct => ct.teacher)
+                            .sort((a, b) => a.hoursToday - b.hoursToday);
+                    } else {
+                        teachersList = teachers
+                            .map(t => ({
+                                teacherId: t.id,
+                                teacher: t,
+                                hoursToday: teacherDailyHours[t.id] || 0,
+                                hours: 999
+                            }))
+                            .sort((a, b) => a.hoursToday - b.hoursToday);
+                    }
+
+                    // Calcola durata ottimale
+                    const remainingBeforeLunch = currentHour < 13 ? 13 - currentHour : 999;
+                    const remainingInDay = currentHour < 13 ? 13 - currentHour : 18 - currentHour;
+                    const remainingForCourseToday = course.maxDailyHours - courseHoursToday;
+                    
+                    let lessonDuration = Math.min(
+                        course.maxConsecutiveHours,
+                        remainingSubjectHours,
+                        course.remainingHours,
+                        remainingForCourseToday,
+                        remainingBeforeLunch,
+                        remainingInDay
+                    );
+
+                    if (lessonDuration < 1) continue;
+
+                    // Trova il docente con meno ore che può tenere questa lezione
+                    let selectedTeacher = null;
+                    for (let ct of teachersList) {
+                        const teacherHoursScheduled = existingLessonsToday
+                            .filter(l => l.teacherId === ct.teacherId)
+                            .reduce((sum, l) => sum + l.duration, 0);
+                        
+                        // Verifica se il docente può fare più ore (target 8h al giorno)
+                        if (teacherHoursScheduled >= 8) continue;
+
+                        // Controlla disponibilità slot
+                        const slot = findNextAvailableSlot(
+                            dateStr, 
+                            currentHour, 
+                            lessonDuration, 
+                            room.id, 
+                            ct.teacherId, 
+                            existingLessonsToday
+                        );
+
+                        if (slot && slot.hour === currentHour) {
+                            selectedTeacher = ct.teacher;
+                            lessonDuration = slot.duration;
+                            break;
+                        }
+                    }
+
+                    if (!selectedTeacher) continue;
+
+                    // Crea la lezione
+                    const tempLesson = {
+                        teacherId: selectedTeacher.id,
+                        roomId: room.id,
+                        date: dateStr,
+                        dayOfWeek: italianDays[currentDate.getDay()],
+                        startTime: `${currentHour.toString().padStart(2, '0')}:00`,
+                        duration: lessonDuration,
+                        subject: currentSubject.name,
+                        courseId: course.id,
+                        numberOfStudents: course.numberOfStudents
+                    };
+
+                    const conflict = checkConflict(tempLesson, existingLessonsToday);
+                    if (!conflict) {
+                        newLessons.push({
+                            id: Date.now() + newLessons.length + Math.random(),
+                            ...tempLesson
+                        });
+                        
+                        existingLessonsToday.push(tempLesson);
+                        course.remainingHours -= lessonDuration;
+                        course.currentSubjectHours += lessonDuration;
+                        teacherDailyHours[selectedTeacher.id] += lessonDuration;
+                        totalScheduledHours += lessonDuration;
+
+                        if (course.currentSubjectHours >= currentSubject.hours) {
+                            course.currentSubjectIndex++;
+                            course.currentSubjectHours = 0;
+                        }
+
+                        currentHour += lessonDuration;
+                        lessonCreated = true;
+                        break; // Passa alla prossima fascia oraria
+                    }
+                }
+
+                // Se nessun corso ha potuto creare una lezione, avanza di un'ora
+                if (!lessonCreated) {
+                    currentHour++;
+                }
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (newLessons.length > 0) {
+            setLessons([...lessons, ...newLessons]);
+            
+            const completedCourses = coursesData.filter(c => c.remainingHours <= 0).length;
+            const partialCourses = coursesData.filter(c => c.remainingHours > 0).length;
+            
+            alert(`✅ Calendarizzazione globale completata!\n\n` +
+                  `📚 Lezioni create: ${newLessons.length}\n` +
+                  `⏱️ Ore totali: ${totalScheduledHours}h\n` +
+                  `✅ Corsi completati: ${completedCourses}\n` +
+                  `📊 Corsi parziali: ${partialCourses}\n` +
+                  `📅 Giorni utilizzati: ${daysProcessed}`);
+        } else {
+            alert('❌ Impossibile calendarizzare. Verifica date e disponibilità.');
+        }
+    };
+
+    const autoScheduleCourse = (course) => {
+        if (!course.startDate || !course.endDate) {
+            alert('Il corso deve avere una data di inizio e fine');
+            return;
+        }
+
+        // Calcola ore già programmate
+        const alreadyScheduled = getCourseScheduledHours(course.id);
+        if (alreadyScheduled >= course.totalHours) {
+            alert('⚠️ Il corso è già completamente calendarizzato!');
+            return;
+        }
+
+        const newLessons = [];
+        const startDate = new Date(course.startDate);
+        const endDate = new Date(course.endDate);
+        const stageStart = course.stageStartDate ? new Date(course.stageStartDate) : null;
+        const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
+
+        let currentDate = new Date(startDate);
+        let totalScheduledHours = alreadyScheduled; // IMPORTANTE: Inizia dalle ore già programmate
+        let subjectIndex = 0;
+        let currentSubjectHours = 0;
+
+        const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
+
+        while (totalScheduledHours < course.totalHours && currentDate <= endDate) {
+            const dayOfWeek = currentDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            if (stageStart && stageEnd && currentDate >= stageStart && currentDate <= stageEnd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                continue;
+            }
+
+            if (subjectIndex >= subjects.length) break;
+            
+            const currentSubject = subjects[subjectIndex];
+            const room = rooms.find(r => r.capacity >= course.numberOfStudents);
+
+            if (!room) {
+                alert(`ERRORE: Nessuna aula disponibile con almeno ${course.numberOfStudents} posti.`);
+                break;
+            }
+
+            const dateStr = formatDate(currentDate);
+            const existingLessonsToday = [...lessons, ...newLessons];
+            
+            const teacherHoursScheduled = {};
+            if (course.teachers && course.teachers.length > 0) {
+                course.teachers.forEach(ct => {
+                    teacherHoursScheduled[ct.teacherId] = 0;
+                });
+                
+                existingLessonsToday.forEach(lesson => {
+                    if (lesson.courseId === course.id && teacherHoursScheduled[lesson.teacherId] !== undefined) {
+                        teacherHoursScheduled[lesson.teacherId] += lesson.duration;
+                    }
+                });
+            }
+            
+            let currentHour = 9;
+            let hoursScheduledToday = 0;
+            // IMPORTANTE: Considera le ore rimanenti del corso
+            const remainingCourseHours = course.totalHours - totalScheduledHours;
+            const maxHoursToday = Math.min(course.maxDailyHours, remainingCourseHours);
+            
+            while (hoursScheduledToday < maxHoursToday && currentHour < 18 && totalScheduledHours < course.totalHours) {
+                const remainingSubjectHours = currentSubject.hours - currentSubjectHours;
+                const remainingTodayHours = maxHoursToday - hoursScheduledToday;
+                const remainingBeforeLunch = currentHour < 13 ? 13 - currentHour : 0;
+                const stillNeeded = course.totalHours - totalScheduledHours; // Ore ancora necessarie
+                
+                let lessonDuration = Math.min(
+                    course.maxConsecutiveHours,
+                    remainingSubjectHours,
+                    remainingTodayHours,
+                    stillNeeded // IMPORTANTE: Non superare mai le ore totali
+                );
+                
+                if (currentHour < 13 && remainingBeforeLunch > 0) {
+                    lessonDuration = Math.min(lessonDuration, remainingBeforeLunch);
+                }
+                
+                if (lessonDuration <= 0) {
+                    if (currentHour < 13) {
+                        currentHour = 14;
+                    } else {
+                        break;
+                    }
+                    continue;
+                }
+                
+                let selectedTeacher = null;
+                if (course.teachers && course.teachers.length > 0) {
+                    for (let courseTeacher of course.teachers) {
+                        const scheduledForThisTeacher = teacherHoursScheduled[courseTeacher.teacherId] || 0;
+                        if (scheduledForThisTeacher >= courseTeacher.hours) continue;
+                        
+                        const slot = findNextAvailableSlot(dateStr, currentHour, lessonDuration, room.id, courseTeacher.teacherId, existingLessonsToday);
+                        if (slot && slot.hour === currentHour) {
+                            selectedTeacher = teachers.find(t => t.id === courseTeacher.teacherId);
+                            lessonDuration = slot.duration;
+                            break;
+                        }
+                    }
+                } else {
+                    const potentialTeacher = teachers.find(t => 
+                        t.subject.toLowerCase().includes(currentSubject.name.toLowerCase()) || 
+                        currentSubject.name.toLowerCase().includes(t.subject.toLowerCase())
+                    ) || teachers[0];
+                    
+                    const slot = findNextAvailableSlot(dateStr, currentHour, lessonDuration, room.id, potentialTeacher.id, existingLessonsToday);
+                    if (slot && slot.hour === currentHour) {
+                        selectedTeacher = potentialTeacher;
+                        lessonDuration = slot.duration;
+                    }
+                }
+                
+                if (!selectedTeacher) {
+                    currentHour++;
+                    if (currentHour === 13) currentHour = 14;
+                    continue;
+                }
+                
+                const tempLesson = {
+                    teacherId: selectedTeacher.id,
+                    roomId: room.id,
+                    date: dateStr,
+                    dayOfWeek: italianDays[currentDate.getDay()],
+                    startTime: `${currentHour.toString().padStart(2, '0')}:00`,
+                    duration: lessonDuration,
+                    subject: currentSubject.name,
+                    courseId: course.id,
+                    numberOfStudents: course.numberOfStudents
+                };
+
+                const conflict = checkConflict(tempLesson, existingLessonsToday);
+                if (!conflict) {
+                    newLessons.push({
+                        id: Date.now() + newLessons.length,
+                        ...tempLesson
+                    });
+                    
+                    hoursScheduledToday += lessonDuration;
+                    totalScheduledHours += lessonDuration;
+                    currentSubjectHours += lessonDuration;
+                    
+                    if (teacherHoursScheduled[selectedTeacher.id] !== undefined) {
+                        teacherHoursScheduled[selectedTeacher.id] += lessonDuration;
+                    }
+                    
+                    if (currentSubjectHours >= currentSubject.hours) {
+                        subjectIndex++;
+                        currentSubjectHours = 0;
+                        if (subjectIndex >= subjects.length) break;
+                    }
+                }
+                
+                currentHour += lessonDuration;
+                if (currentHour === 13) currentHour = 14;
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (newLessons.length > 0) {
+            const newTotal = totalScheduledHours - alreadyScheduled;
+            setLessons([...lessons, ...newLessons]);
+            alert(`✅ Corso calendarizzato! Create ${newLessons.length} lezioni per ${newTotal}h.\nTotale: ${totalScheduledHours}h/${course.totalHours}h (${((totalScheduledHours/course.totalHours)*100).toFixed(1)}%)`);
+        } else {
+            alert('❌ Impossibile calendarizzare il corso.');
+        }
+    };
+
+    const addLesson = () => {
+        if (newLesson.teacherId && newLesson.roomId && newLesson.subject && newLesson.date && newLesson.numberOfStudents) {
+            const conflict = checkConflict(newLesson);
+            if (conflict) {
+                alert(`Errore: ${conflict}`);
+                return;
+            }
+            
+            // Controlla se la lezione è associata a un corso e se supera le ore totali
+            if (newLesson.courseId) {
+                const courseId = parseInt(newLesson.courseId);
+                const course = courses.find(c => c.id === courseId);
+                if (course) {
+                    const currentScheduled = getCourseScheduledHours(courseId);
+                    const newTotal = currentScheduled + parseInt(newLesson.duration);
+                    if (newTotal > course.totalHours) {
+                        alert(`⚠️ Attenzione! Questa lezione porterebbe il corso a ${newTotal}h su ${course.totalHours}h totali (${((newTotal/course.totalHours)*100).toFixed(1)}%).\n\nIl corso verrebbe programmato oltre il 100%.`);
+                        if (!window.confirm('Vuoi procedere comunque?')) {
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            const lessonDate = new Date(newLesson.date);
+            const dayOfWeek = italianDays[lessonDate.getDay()];
+            setLessons([...lessons, { 
+                ...newLesson,
+                id: Date.now(),
+                dayOfWeek: dayOfWeek,
+                teacherId: parseInt(newLesson.teacherId),
+                roomId: parseInt(newLesson.roomId),
+                duration: parseInt(newLesson.duration),
+                numberOfStudents: parseInt(newLesson.numberOfStudents),
+                courseId: newLesson.courseId ? parseInt(newLesson.courseId) : undefined
+            }]);
+            setNewLesson({
+                teacherId: '', roomId: '', date: new Date().toISOString().split('T')[0],
+                startTime: '09:00', duration: 1, subject: '', numberOfStudents: '', courseId: ''
+            });
+            setShowAddLesson(false);
+        }
+    };
+
+    const deleteLesson = (id) => {
+        const lesson = lessons.find(l => l.id === id);
+        let confirmMessage = 'Sei sicuro di voler eliminare questa lezione?';
+        
+        // Se la lezione appartiene a un corso, mostra info aggiuntive
+        if (lesson && lesson.courseId) {
+            const course = courses.find(c => c.id === lesson.courseId);
+            if (course) {
+                const currentScheduled = getCourseScheduledHours(lesson.courseId);
+                const afterDeletion = currentScheduled - lesson.duration;
+                confirmMessage = `Vuoi eliminare questa lezione?\n\nCorso: ${course.name}\nOre dopo eliminazione: ${afterDeletion}h/${course.totalHours}h (${((afterDeletion/course.totalHours)*100).toFixed(1)}%)`;
+            }
+        }
+        
+        if (window.confirm(confirmMessage)) {
+            setLessons(lessons.filter(l => l.id !== id));
+            setSelectedLesson(null);
+        }
+    };
+
+    const updateLessonDetails = () => {
+        if (editingLesson.teacherId && editingLesson.roomId && editingLesson.subject && editingLesson.numberOfStudents) {
+            const conflict = checkConflict(editingLesson);
+            if (conflict) {
+                alert(`Errore: ${conflict}`);
+                return;
+            }
+            
+            // Controlla se la modifica della durata supera le ore del corso
+            if (editingLesson.courseId) {
+                const oldLesson = lessons.find(l => l.id === editingLesson.id);
+                const courseId = parseInt(editingLesson.courseId);
+                const course = courses.find(c => c.id === courseId);
+                if (course && oldLesson) {
+                    const currentScheduled = getCourseScheduledHours(courseId);
+                    const durationDiff = parseInt(editingLesson.duration) - oldLesson.duration;
+                    const newTotal = currentScheduled + durationDiff;
+                    if (newTotal > course.totalHours && durationDiff > 0) {
+                        alert(`⚠️ Attenzione! Questa modifica porterebbe il corso a ${newTotal}h su ${course.totalHours}h (${((newTotal/course.totalHours)*100).toFixed(1)}%).`);
+                        if (!window.confirm('Vuoi procedere comunque?')) {
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            setLessons(lessons.map(l => l.id === editingLesson.id ? {
+                ...editingLesson,
+                teacherId: parseInt(editingLesson.teacherId),
+                roomId: parseInt(editingLesson.roomId),
+                duration: parseInt(editingLesson.duration),
+                numberOfStudents: parseInt(editingLesson.numberOfStudents),
+                courseId: editingLesson.courseId ? parseInt(editingLesson.courseId) : undefined
+            } : l));
+            setShowEditLessonDetails(false);
+            setEditingLesson(null);
+            setSelectedLesson(null);
+        }
+    };
+
+    const addCourse = () => {
+        if (newCourse.name && newCourse.totalHours && newCourse.startDate && newCourse.endDate && newCourse.numberOfStudents) {
+            const course = {
+                ...newCourse,
+                id: Date.now(),
+                totalHours: parseInt(newCourse.totalHours),
+                maxDailyHours: parseInt(newCourse.maxDailyHours),
+                maxConsecutiveHours: parseInt(newCourse.maxConsecutiveHours),
+                numberOfStudents: parseInt(newCourse.numberOfStudents),
+                teachers: (newCourse.teachers || []).map(t => ({
+                    teacherId: parseInt(t.teacherId),
+                    hours: parseInt(t.hours)
+                }))
+            };
+            setCourses([...courses, course]);
+            setNewCourse({
+                name: '', totalHours: 0, maxDailyHours: 4, maxConsecutiveHours: 4,
+                startDate: '', endDate: '', subjects: [], teachers: [],
+                stageStartDate: '', stageEndDate: '', numberOfStudents: ''
+            });
+            setShowAddCourse(false);
+        }
+    };
+
+    const updateCourse = () => {
+        if (editingCourse.name && editingCourse.totalHours && editingCourse.startDate && editingCourse.endDate && editingCourse.numberOfStudents) {
+            // Verifica se le ore totali stanno diminuendo
+            const currentScheduled = getCourseScheduledHours(editingCourse.id);
+            const newTotalHours = parseInt(editingCourse.totalHours);
+            if (newTotalHours < currentScheduled) {
+                alert(`⚠️ Attenzione! Hai già ${currentScheduled}h programmate per questo corso.\nNon puoi impostare il totale a ${newTotalHours}h.`);
+                return;
+            }
+            
+            setCourses(courses.map(c => c.id === editingCourse.id ? {
+                ...editingCourse,
+                totalHours: newTotalHours,
+                maxDailyHours: parseInt(editingCourse.maxDailyHours),
+                maxConsecutiveHours: parseInt(editingCourse.maxConsecutiveHours),
+                numberOfStudents: parseInt(editingCourse.numberOfStudents),
+                teachers: (editingCourse.teachers || []).map(t => ({
+                    teacherId: parseInt(t.teacherId),
+                    hours: parseInt(t.hours)
+                }))
+            } : c));
+            setShowEditCourse(false);
+            setEditingCourse(null);
+        }
+    };
+
+    const deleteCourse = (id) => {
+        if (window.confirm('Sei sicuro di voler eliminare questo corso? Tutte le lezioni associate verranno eliminate.')) {
+            setCourses(courses.filter(c => c.id !== id));
+            setLessons(lessons.filter(l => l.courseId !== id));
+        }
+    };
+
+    const addTeacher = () => {
+        if (newTeacher.name && newTeacher.email) {
+            setTeachers([...teachers, { ...newTeacher, id: Date.now() }]);
+            setNewTeacher({ name: '', email: '', subject: '' });
+            setShowAddTeacher(false);
+        }
+    };
+
+    const updateTeacher = () => {
+        if (editingTeacher.name && editingTeacher.email) {
+            setTeachers(teachers.map(t => t.id === editingTeacher.id ? editingTeacher : t));
+            setShowEditTeacher(false);
+            setEditingTeacher(null);
+        }
+    };
+
+    const deleteTeacher = (id) => {
+        if (window.confirm('Sei sicuro?')) {
+            setTeachers(teachers.filter(t => t.id !== id));
+        }
+    };
+
+    const addRoom = () => {
+        if (newRoom.name && newRoom.capacity) {
+            setRooms([...rooms, { ...newRoom, id: Date.now(), capacity: parseInt(newRoom.capacity) }]);
+            setNewRoom({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
+            setShowAddRoom(false);
+        }
+    };
+
+    const updateRoom = () => {
+        if (editingRoom.name && editingRoom.capacity) {
+            setRooms(rooms.map(r => r.id === editingRoom.id ? {...editingRoom, capacity: parseInt(editingRoom.capacity)} : r));
+            setShowEditRoom(false);
+            setEditingRoom(null);
+        }
+    };
+
+    const deleteRoom = (id) => {
+        if (window.confirm('Sei sicuro?')) {
+            setRooms(rooms.filter(r => r.id !== id));
+        }
+    };
+
+    const addSubjectToCourse = (courseState, setCourseState) => {
+        setCourseState({...courseState, subjects: [...courseState.subjects, { name: '', hours: 0 }]});
+    };
+
+    const updateSubject = (courseState, setCourseState, index, field, value) => {
+        const newSubjects = [...courseState.subjects];
+        newSubjects[index][field] = field === 'hours' ? parseInt(value) || 0 : value;
+        setCourseState({...courseState, subjects: newSubjects});
+    };
+
+    const removeSubject = (courseState, setCourseState, index) => {
+        setCourseState({...courseState, subjects: courseState.subjects.filter((_, i) => i !== index)});
+    };
+
+    const addTeacherToCourse = (courseState, setCourseState) => {
+        setCourseState({...courseState, teachers: [...(courseState.teachers || []), { teacherId: '', hours: 0 }]});
+    };
+
+    const updateCourseTeacher = (courseState, setCourseState, index, field, value) => {
+        const newTeachers = [...courseState.teachers];
+        newTeachers[index][field] = field === 'hours' ? parseInt(value) || 0 : value;
+        setCourseState({...courseState, teachers: newTeachers});
+    };
+
+    const removeCourseTeacher = (courseState, setCourseState, index) => {
+        setCourseState({...courseState, teachers: courseState.teachers.filter((_, i) => i !== index)});
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 p-6">
+            <div className="max-w-7xl mx-auto">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-6 mb-6 text-white">
+                    <h1 className="text-3xl font-bold mb-2">Sistema Gestione Aule e Calendari</h1>
+                    <p className="text-blue-100">✅ Gestione ore corso al 100% - Pausa pranzo 13:00-14:00</p>
+                </div>
+
+                <div className="flex gap-4 mb-6 flex-wrap">
+                    {[
+                        { id: 'dashboard', icon: CalendarIcon, label: 'Dashboard' },
+                        { id: 'courses', icon: CourseIcon, label: 'Corsi' },
+                        { id: 'teachers', icon: UsersIcon, label: 'Insegnanti' },
+                        { id: 'rooms', icon: MapPinIcon, label: 'Aule' }
+                    ].map(tab => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+                                    activeTab === tab.id 
+                                        ? 'bg-blue-600 text-white shadow-lg' 
+                                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                                }`}
+                            >
+                                <Icon />{tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {activeTab === 'dashboard' && (
+                    <div>
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+                                <h2 className="text-2xl font-bold text-gray-800">Calendario e Lezioni</h2>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setViewMode('week')} className={`px-4 py-2 rounded ${viewMode === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Settimana</button>
+                                    <button onClick={() => setViewMode('month')} className={`px-4 py-2 rounded ${viewMode === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Mese</button>
+                                </div>
+                            </div>
+
+                            <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                                <p className="text-sm text-green-800"><strong>✅ Controlli attivi:</strong> Le ore del corso non supereranno mai il 100%. Cancellando lezioni si liberano ore, aggiungendole si occupano.</p>
+                            </div>
+
+                            {viewMode === 'week' && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+                                        <button onClick={() => navigateWeek(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">← Prec.</button>
+                                        <h3 className="text-lg font-semibold">
+                                            Settimana del {getWeekDates()[0].toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </h3>
+                                        <button onClick={() => navigateWeek(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Succ. →</button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full border-collapse">
+                                            <thead>
+                                                <tr>
+                                                    <th className="border p-2 bg-gray-100 sticky left-0">Ora</th>
+                                                    {getWeekDates().map((date, idx) => (
+                                                        <th key={idx} className="border p-2 bg-gray-100 min-w-[150px]">
+                                                            <div className="font-bold">{italianDays[date.getDay()]}</div>
+                                                            <div className="text-sm font-normal">{date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</div>
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Array.from({length: 10}, (_, i) => i + 9).map(hour => (
+                                                    <tr key={hour}>
+                                                        <td className={`border p-2 text-center font-semibold sticky left-0 ${hour === 13 ? 'bg-yellow-100' : 'bg-gray-50'}`}>
+                                                            {hour}:00 {hour === 13 ? '🍽️' : ''}
+                                                        </td>
+                                                        {getWeekDates().map((date, idx) => {
+                                                            const dateStr = formatDate(date);
+                                                            const lessonsStarting = lessons.filter(l => {
+                                                                if (l.date !== dateStr) return false;
+                                                                const startHour = parseInt(l.startTime.split(':')[0]);
+                                                                return hour === startHour;
+                                                            });
+                                                            
+                                                            // Verifica se questa cella è occupata da una lezione che inizia prima
+                                                            const isOccupied = lessons.some(l => {
+                                                                if (l.date !== dateStr) return false;
+                                                                const startHour = parseInt(l.startTime.split(':')[0]);
+                                                                const endHour = startHour + l.duration;
+                                                                return hour > startHour && hour < endHour;
+                                                            });
+                                                            
+                                                            return (
+                                                                <td key={idx} className={`border-2 p-0 align-top ${hour === 13 ? 'bg-yellow-50' : 'bg-white'}`} style={{minHeight: '62px', height: '62px', position: 'relative'}}>
+                                                                    {lessonsStarting.length > 0 && (
+                                                                        <div className="p-1" style={{position: 'relative', height: '100%'}}>
+                                                                            {lessonsStarting.map((lesson, lessonIndex) => {
+                                                                                const teacher = teachers.find(t => t.id === lesson.teacherId);
+                                                                                const room = rooms.find(r => r.id === lesson.roomId);
+                                                                                const course = courses.find(c => c.id === lesson.courseId);
+                                                                                const color = getCourseColor(lesson.courseId);
+                                                                                
+                                                                                // Calcola l'altezza in base alla durata: ogni ora = 62px (altezza cella + bordi)
+                                                                                const cellHeight = 62;
+                                                                                const heightPx = lesson.duration * cellHeight - 2; // -2 per i bordi
+                                                                                
+                                                                                // Offset del 50% per ogni lezione successiva
+                                                                                const lessonWidth = 120;
+                                                                                const offsetX = lessonIndex * (lessonWidth * 0.5);
+                                                                                
+                                                                                return (
+                                                                                    <div
+                                                                                        key={lesson.id}
+                                                                                        className={`${color.bg} ${color.text} ${color.border} border-2 rounded-lg p-2 cursor-pointer lesson-block shadow-md ${selectedLesson?.id === lesson.id ? 'ring-4 ring-yellow-400' : ''}`}
+                                                                                        style={{
+                                                                                            height: `${heightPx}px`,
+                                                                                            minWidth: `${lessonWidth}px`,
+                                                                                            width: `${lessonWidth}px`,
+                                                                                            overflow: 'visible',
+                                                                                            position: 'absolute',
+                                                                                            top: '1px',
+                                                                                            left: `${1 + offsetX}px`,
+                                                                                            zIndex: 20 + lessonIndex
+                                                                                        }}
+                                                                                        onClick={() => setSelectedLesson(lesson)}
+                                                                                    >
+                                                                                        <div className="text-xs font-bold truncate">{lesson.subject}</div>
+                                                                                        <div className="text-xs truncate opacity-90">{lesson.startTime} ({lesson.duration}h)</div>
+                                                                                        <div className="text-xs truncate opacity-90">{teacher?.name}</div>
+                                                                                        <div className="text-xs truncate opacity-80">{room?.name}</div>
+                                                                                        {course && <div className="text-xs font-semibold truncate mt-1">{course.name}</div>}
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                    {isOccupied && !lessonsStarting.length && (
+                                                                        <div style={{height: '62px'}}></div>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewMode === 'month' && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+                                        <button onClick={() => navigateMonth(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">← Prec.</button>
+                                        <h3 className="text-lg font-semibold capitalize">
+                                            {selectedDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
+                                        </h3>
+                                        <button onClick={() => navigateMonth(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Succ. →</button>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1">
+                                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                                            <div key={day} className="border p-2 bg-gray-100 text-center font-semibold text-sm">{day}</div>
+                                        ))}
+                                        {getMonthDays().map((date, idx) => {
+                                            if (!date) return <div key={idx} className="border p-2 min-h-24 bg-gray-50"/>;
+                                            
+                                            const dateStr = formatDate(date);
+                                            const dayLessons = lessons.filter(l => l.date === dateStr);
+                                            
+                                            return (
+                                                <div key={idx} className="border p-2 min-h-24 bg-white hover:bg-gray-50 transition">
+                                                    <div className="font-semibold text-sm mb-1">{date.getDate()}</div>
+                                                    {dayLessons.slice(0, 3).map(lesson => {
+                                                        const color = getCourseColor(lesson.courseId);
+                                                        return (
+                                                            <div 
+                                                                key={lesson.id} 
+                                                                className={`text-xs p-1 mb-1 rounded cursor-pointer font-medium ${color.bg} ${color.text} hover:opacity-90 ${selectedLesson?.id === lesson.id ? 'ring-2 ring-yellow-400' : ''}`}
+                                                                onClick={() => setSelectedLesson(lesson)}
+                                                            >
+                                                                {lesson.startTime} {lesson.subject}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {dayLessons.length > 3 && (
+                                                        <div className="text-xs text-gray-500 font-semibold">+{dayLessons.length - 3} altre</div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedLesson && !showEditLessonDetails && (
+                                <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="text-xl font-bold text-blue-900">📋 Dettagli Lezione</h3>
+                                        <button onClick={() => setSelectedLesson(null)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><p className="text-sm text-gray-600 font-semibold">Materia:</p><p className="text-lg">{selectedLesson.subject}</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Corso:</p><p className="text-lg">{courses.find(c => c.id === selectedLesson.courseId)?.name || 'Lezione singola'}</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Docente:</p><p className="text-lg">{teachers.find(t => t.id === selectedLesson.teacherId)?.name}</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Aula:</p><p className="text-lg">{rooms.find(r => r.id === selectedLesson.roomId)?.name}</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Data e Ora:</p><p className="text-lg">{new Date(selectedLesson.date).toLocaleDateString('it-IT')} - {selectedLesson.startTime}</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Durata:</p><p className="text-lg">{selectedLesson.duration} ore</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Numero Studenti:</p><p className="text-lg">👥 {selectedLesson.numberOfStudents}</p></div>
+                                    </div>
+                                    <div className="flex gap-2 mt-4">
+                                        <button onClick={() => { setEditingLesson({...selectedLesson}); setShowEditLessonDetails(true); }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Modifica</button>
+                                        <button onClick={() => deleteLesson(selectedLesson.id)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Elimina</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {showEditLessonDetails && editingLesson && (
+                                <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
+                                    <h3 className="text-xl font-bold text-yellow-900 mb-4">✏️ Modifica Lezione</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="block text-sm font-medium mb-1">Corso (opzionale)</label>
+                                            <select value={editingLesson.courseId || ''} onChange={(e) => setEditingLesson({...editingLesson, courseId: e.target.value})} className="w-full p-2 border rounded">
+                                                <option value="">Nessun corso</option>
+                                                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">Insegnante</label>
+                                            <select value={editingLesson.teacherId} onChange={(e) => setEditingLesson({...editingLesson, teacherId: e.target.value})} className="w-full p-2 border rounded">
+                                                <option value="">Seleziona</option>
+                                                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">Aula</label>
+                                            <select value={editingLesson.roomId} onChange={(e) => setEditingLesson({...editingLesson, roomId: e.target.value})} className="w-full p-2 border rounded">
+                                                <option value="">Seleziona</option>
+                                                {rooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.capacity} posti)</option>)}
+                                            </select>
+                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">Data</label><input type="date" value={editingLesson.date} onChange={(e) => setEditingLesson({...editingLesson, date: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                        <div><label className="block text-sm font-medium mb-1">Ora Inizio</label><input type="time" value={editingLesson.startTime} onChange={(e) => setEditingLesson({...editingLesson, startTime: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                        <div><label className="block text-sm font-medium mb-1">Durata (ore)</label><input type="number" min="1" max="8" value={editingLesson.duration} onChange={(e) => setEditingLesson({...editingLesson, duration: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                        <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={editingLesson.numberOfStudents} onChange={(e) => setEditingLesson({...editingLesson, numberOfStudents: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                        <div className="col-span-2"><label className="block text-sm font-medium mb-1">Materia</label><input type="text" value={editingLesson.subject} onChange={(e) => setEditingLesson({...editingLesson, subject: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    </div>
+                                    <div className="flex gap-2 mt-4">
+                                        <button onClick={updateLessonDetails} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                                        <button onClick={() => {setShowEditLessonDetails(false); setEditingLesson(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow p-6 mb-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-2xl font-bold">Gestione Lezioni</h2>
+                                <button onClick={() => setShowAddLesson(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    <PlusIcon />Aggiungi Lezione
+                                </button>
+                            </div>
+
+                            {showAddLesson && (
+                                <div className="bg-gray-50 p-4 rounded-lg mb-4 border-2 border-blue-300">
+                                    <h3 className="font-bold mb-4">Nuova Lezione</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <select value={newLesson.courseId} onChange={(e) => setNewLesson({...newLesson, courseId: e.target.value})} className="p-2 border rounded">
+                                            <option value="">Nessun corso (lezione singola)</option>
+                                            {courses.map(c => {
+                                                const remaining = getCourseRemainingHours(c.id);
+                                                return <option key={c.id} value={c.id}>{c.name} ({remaining}h rimanenti)</option>;
+                                            })}
+                                        </select>
+                                        <select value={newLesson.teacherId} onChange={(e) => setNewLesson({...newLesson, teacherId: e.target.value})} className="p-2 border rounded">
+                                            <option value="">Seleziona Insegnante</option>
+                                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
+                                        <select value={newLesson.roomId} onChange={(e) => setNewLesson({...newLesson, roomId: e.target.value})} className="p-2 border rounded">
+                                            <option value="">Seleziona Aula</option>
+                                            {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                        </select>
+                                        <input type="date" value={newLesson.date} onChange={(e) => setNewLesson({...newLesson, date: e.target.value})} className="p-2 border rounded"/>
+                                        <input type="time" value={newLesson.startTime} onChange={(e) => setNewLesson({...newLesson, startTime: e.target.value})} className="p-2 border rounded"/>
+                                        <input type="number" min="1" max="8" value={newLesson.duration} onChange={(e) => setNewLesson({...newLesson, duration: e.target.value})} placeholder="Durata (ore)" className="p-2 border rounded"/>
+                                        <input type="number" min="1" max="100" value={newLesson.numberOfStudents} onChange={(e) => setNewLesson({...newLesson, numberOfStudents: e.target.value})} placeholder="Numero Studenti" className="p-2 border rounded"/>
+                                        <input type="text" value={newLesson.subject} onChange={(e) => setNewLesson({...newLesson, subject: e.target.value})} placeholder="Materia" className="p-2 border rounded col-span-2"/>
+                                    </div>
+                                    <div className="flex gap-2 mt-4">
+                                        <button onClick={addLesson} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                                        <button onClick={() => setShowAddLesson(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {lessons.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <p className="text-lg mb-2">Nessuna lezione programmata</p>
+                                        <p className="text-sm">Aggiungi lezioni manualmente o calendarizza un corso</p>
+                                    </div>
+                                ) : (
+                                    lessons.map(lesson => {
+                                        const teacher = teachers.find(t => t.id === lesson.teacherId);
+                                        const room = rooms.find(r => r.id === lesson.roomId);
+                                        const course = courses.find(c => c.id === lesson.courseId);
+                                        const color = getCourseColor(lesson.courseId);
+                                        return (
+                                            <div key={lesson.id} className={`flex justify-between items-center p-4 rounded-lg hover:bg-gray-100 transition border-l-4 ${color.border}`}>
+                                                <div>
+                                                    <div className="font-semibold">{lesson.subject} {course && <span className="text-sm text-gray-600">({course.name})</span>}</div>
+                                                    <div className="text-sm text-gray-600">{teacher?.name} - {lesson.date} {lesson.startTime} ({lesson.duration}h) - {room?.name}</div>
+                                                    {lesson.numberOfStudents && <div className="text-sm text-blue-600 font-semibold">👥 {lesson.numberOfStudents} studenti / {room?.capacity} posti</div>}
+                                                </div>
+                                                <button onClick={() => deleteLesson(lesson.id)} className="text-red-600 hover:text-red-800"><Trash2Icon /></button>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg shadow p-6">
+                            <h2 className="text-2xl font-bold mb-4">📊 Statistiche</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div className="border-2 border-blue-500 rounded-lg p-6 text-center bg-blue-50">
+                                    <div className="text-4xl font-bold text-blue-600">{courses.length}</div>
+                                    <div className="text-gray-600 mt-2">Corsi</div>
+                                </div>
+                                <div className="border-2 border-green-500 rounded-lg p-6 text-center bg-green-50">
+                                    <div className="text-4xl font-bold text-green-600">{teachers.length}</div>
+                                    <div className="text-gray-600 mt-2">Insegnanti</div>
+                                </div>
+                                <div className="border-2 border-orange-500 rounded-lg p-6 text-center bg-orange-50">
+                                    <div className="text-4xl font-bold text-orange-600">{rooms.length}</div>
+                                    <div className="text-gray-600 mt-2">Aule</div>
+                                </div>
+                                <div className="border-2 border-purple-500 rounded-lg p-6 text-center bg-purple-50">
+                                    <div className="text-4xl font-bold text-purple-600">{lessons.length}</div>
+                                    <div className="text-gray-600 mt-2">Lezioni</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'courses' && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+                            <h2 className="text-2xl font-bold text-gray-800">📚 Gestione Corsi</h2>
+                            <div className="flex gap-2 flex-wrap">
+                                <button 
+                                    onClick={autoScheduleAllCourses} 
+                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 shadow-lg font-bold text-lg"
+                                >
+                                    <CalendarIcon />Auto-Calendarizza TUTTI
+                                </button>
+                                <button 
+                                    onClick={() => setShowAddCourse(true)} 
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    <PlusIcon />Aggiungi Corso
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-300">
+                            <p className="text-sm text-green-900 mb-2"><strong>🚀 Calendarizzazione Globale Ottimizzata:</strong></p>
+                            <ul className="text-sm text-green-800 space-y-1 ml-4">
+                                <li>• Ottimizza tutti i corsi insieme alternando docenti e aule</li>
+                                <li>• Massimizza l'utilizzo docenti: target 8h al giorno per docente</li>
+                                <li>• Nessuna pausa tra docenti (tranne pranzo 13:00-14:00)</li>
+                                <li>• Rispetta sempre il 100% delle ore per ogni corso</li>
+                            </ul>
+                        </div>
+
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-sm text-blue-800"><strong>💡 Controllo automatico:</strong> L'auto-calendarizzazione si ferma al 100% delle ore. Puoi aggiungere/rimuovere lezioni manualmente.</p>
+                        </div>
+
+                        {showAddCourse && (
+                            <div className="bg-gray-50 p-4 rounded-lg mb-6 border-2 border-green-300">
+                                <h3 className="font-bold mb-4">Nuovo Corso</h3>
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div className="col-span-2"><label className="block text-sm font-medium mb-1">Nome Corso</label><input type="text" value={newCourse.name} onChange={(e) => setNewCourse({...newCourse, name: e.target.value})} placeholder="Es: Operatore Informatico" className="w-full p-2 border rounded"/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Totale Ore</label><input type="number" min="1" value={newCourse.totalHours} onChange={(e) => setNewCourse({...newCourse, totalHours: e.target.value})} placeholder="Es: 200" className="w-full p-2 border rounded"/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={newCourse.numberOfStudents} onChange={(e) => setNewCourse({...newCourse, numberOfStudents: e.target.value})} placeholder="Es: 25" className="w-full p-2 border rounded"/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={newCourse.maxDailyHours} onChange={(e) => setNewCourse({...newCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={newCourse.maxConsecutiveHours} onChange={(e) => setNewCourse({...newCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Date Corso</label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div><label className="block text-xs text-gray-500 mb-1">Data Inizio</label><input type="date" value={newCourse.startDate} onChange={(e) => setNewCourse({...newCourse, startDate: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                            <div><label className="block text-xs text-gray-500 mb-1">Data Fine</label><input type="date" value={newCourse.endDate} onChange={(e) => setNewCourse({...newCourse, endDate: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Stage (opzionale)</label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div><label className="block text-xs text-gray-500 mb-1">Inizio Stage</label><input type="date" value={newCourse.stageStartDate} onChange={(e) => setNewCourse({...newCourse, stageStartDate: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                            <div><label className="block text-xs text-gray-500 mb-1">Fine Stage</label><input type="date" value={newCourse.stageEndDate} onChange={(e) => setNewCourse({...newCourse, stageEndDate: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-sm font-medium">Docenti (consigliato)</label>
+                                        <button type="button" onClick={() => addTeacherToCourse(newCourse, setNewCourse)} className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">+ Docente</button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {(newCourse.teachers || []).map((ct, index) => (
+                                            <div key={index} className="flex gap-2">
+                                                <select value={ct.teacherId} onChange={(e) => updateCourseTeacher(newCourse, setNewCourse, index, 'teacherId', e.target.value)} className="flex-1 p-2 border rounded">
+                                                    <option value="">Seleziona</option>
+                                                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name} - {t.subject}</option>)}
+                                                </select>
+                                                <input type="number" min="1" value={ct.hours} onChange={(e) => updateCourseTeacher(newCourse, setNewCourse, index, 'hours', e.target.value)} placeholder="Ore" className="w-24 p-2 border rounded"/>
+                                                <button onClick={() => removeCourseTeacher(newCourse, setNewCourse, index)} className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"><Trash2Icon /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-sm font-medium">Materie (opzionale)</label>
+                                        <button onClick={() => addSubjectToCourse(newCourse, setNewCourse)} className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">+ Materia</button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {newCourse.subjects.map((subject, index) => (
+                                            <div key={index} className="flex gap-2">
+                                                <input type="text" value={subject.name} onChange={(e) => updateSubject(newCourse, setNewCourse, index, 'name', e.target.value)} placeholder="Nome" className="flex-1 p-2 border rounded"/>
+                                                <input type="number" min="1" value={subject.hours} onChange={(e) => updateSubject(newCourse, setNewCourse, index, 'hours', e.target.value)} placeholder="Ore" className="w-24 p-2 border rounded"/>
+                                                <button onClick={() => removeSubject(newCourse, setNewCourse, index)} className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"><Trash2Icon /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button onClick={addCourse} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                                    <button onClick={() => setShowAddCourse(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showEditCourse && editingCourse && (
+                            <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-400">
+                                <h3 className="font-bold mb-4 text-blue-800">Modifica Corso</h3>
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div className="col-span-2"><input type="text" value={editingCourse.name} onChange={(e) => setEditingCourse({...editingCourse, name: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    <input type="number" min="1" value={editingCourse.totalHours} onChange={(e) => setEditingCourse({...editingCourse, totalHours: e.target.value})} className="p-2 border rounded"/>
+                                    <input type="number" min="1" max="100" value={editingCourse.numberOfStudents} onChange={(e) => setEditingCourse({...editingCourse, numberOfStudents: e.target.value})} className="p-2 border rounded"/>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={updateCourse} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
+                                    <button onClick={() => {setShowEditCourse(false); setEditingCourse(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 gap-6">
+                            {courses.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500">
+                                    <p className="text-lg mb-2">Nessun corso creato</p>
+                                    <p className="text-sm">Clicca su "Aggiungi Corso" per iniziare</p>
+                                </div>
+                            ) : (
+                                courses.map((course) => {
+                                    const scheduledHours = getCourseScheduledHours(course.id);
+                                    const progress = (scheduledHours / course.totalHours) * 100;
+                                    const color = getCourseColor(course.id);
+                                    const courseLessons = lessons.filter(l => l.courseId === course.id);
+
+                                    return (
+                                        <div key={course.id} className={`border-2 rounded-lg p-6 transition ${color.light} ${color.border} hover:shadow-lg`}>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex-1">
+                                                    <h3 className="text-xl font-bold text-gray-800">{course.name}</h3>
+                                                    <div className="flex gap-2 mt-2 flex-wrap">
+                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>{course.totalHours}h</span>
+                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>👥 {course.numberOfStudents}</span>
+                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>Max {course.maxDailyHours}h/giorno</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mb-4">
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="font-semibold">Progresso:</span>
+                                                    <span className={progress >= 100 ? 'text-green-600 font-bold' : ''}>
+                                                        {scheduledHours}h / {course.totalHours}h ({progress.toFixed(1)}%)
+                                                        {progress >= 100 && ' ✅'}
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-gray-200 rounded-full h-3">
+                                                    <div className={`${progress >= 100 ? 'bg-green-600' : color.bg} h-3 rounded-full transition-all`} style={{width: `${Math.min(progress, 100)}%`}}></div>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-1">{courseLessons.length} lezioni create</p>
+                                            </div>
+
+                                            <div className="flex gap-2 pt-4 border-t">
+                                                <button onClick={() => autoScheduleCourse(course)} disabled={scheduledHours >= course.totalHours} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400">
+                                                    <CalendarIcon />{scheduledHours >= course.totalHours ? 'Completato' : 'Calendarizza'}
+                                                </button>
+                                                <button onClick={() => { setEditingCourse({...course}); setShowEditCourse(true); }} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                                    <EditIcon />
+                                                </button>
+                                                <button onClick={() => deleteCourse(course.id)} className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                                                    <Trash2Icon />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'teachers' && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">👨‍🏫 Gestione Insegnanti</h2>
+                            <button onClick={() => setShowAddTeacher(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <PlusIcon />Aggiungi
+                            </button>
+                        </div>
+
+                        {showAddTeacher && (
+                            <div className="bg-gray-50 p-4 rounded-lg mb-6 border-2 border-green-300">
+                                <h3 className="font-bold mb-4">Nuovo Insegnante</h3>
+                                <div className="space-y-3">
+                                    <input type="text" value={newTeacher.name} onChange={(e) => setNewTeacher({...newTeacher, name: e.target.value})} placeholder="Nome completo" className="w-full p-2 border rounded"/>
+                                    <input type="email" value={newTeacher.email} onChange={(e) => setNewTeacher({...newTeacher, email: e.target.value})} placeholder="Email" className="w-full p-2 border rounded"/>
+                                    <input type="text" value={newTeacher.subject} onChange={(e) => setNewTeacher({...newTeacher, subject: e.target.value})} placeholder="Materia" className="w-full p-2 border rounded"/>
+                                    <div className="flex gap-2">
+                                        <button onClick={addTeacher} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                                        <button onClick={() => setShowAddTeacher(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {showEditTeacher && editingTeacher && (
+                            <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-300">
+                                <h3 className="font-bold mb-4">Modifica Insegnante</h3>
+                                <div className="space-y-3">
+                                    <input type="text" value={editingTeacher.name} onChange={(e) => setEditingTeacher({...editingTeacher, name: e.target.value})} className="w-full p-2 border rounded"/>
+                                    <input type="email" value={editingTeacher.email} onChange={(e) => setEditingTeacher({...editingTeacher, email: e.target.value})} className="w-full p-2 border rounded"/>
+                                    <input type="text" value={editingTeacher.subject} onChange={(e) => setEditingTeacher({...editingTeacher, subject: e.target.value})} className="w-full p-2 border rounded"/>
+                                    <div className="flex gap-2">
+                                        <button onClick={updateTeacher} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
+                                        <button onClick={() => {setShowEditTeacher(false); setEditingTeacher(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {teachers.map(teacher => (
+                                <div key={teacher.id} className="border-2 rounded-lg p-4 hover:shadow-lg transition">
+                                    <div className="mb-4">
+                                        <h3 className="font-bold text-lg">{teacher.name}</h3>
+                                        <p className="text-gray-600">{teacher.subject}</p>
+                                        <p className="text-sm text-gray-500">{teacher.email}</p>
+                                    </div>
+                                    <div className="flex gap-2 pt-4 border-t">
+                                        <button onClick={() => { setEditingTeacher({...teacher}); setShowEditTeacher(true); }} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"><EditIcon />Modifica</button>
+                                        <button onClick={() => deleteTeacher(teacher.id)} className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center gap-2"><Trash2Icon />Elimina</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'rooms' && (
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">🏫 Gestione Aule</h2>
+                            <button onClick={() => setShowAddRoom(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <PlusIcon />Aggiungi
+                            </button>
+                        </div>
+
+                        {showAddRoom && (
+                            <div className="bg-gray-50 p-4 rounded-lg mb-6 border-2 border-green-300">
+                                <h3 className="font-bold mb-4">Nuova Aula</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input type="text" value={newRoom.name} onChange={(e) => setNewRoom({...newRoom, name: e.target.value})} placeholder="Nome" className="p-2 border rounded"/>
+                                    <input type="number" min="1" max="100" value={newRoom.capacity} onChange={(e) => setNewRoom({...newRoom, capacity: e.target.value})} placeholder="Posti" className="p-2 border rounded"/>
+                                    <select value={newRoom.type} onChange={(e) => setNewRoom({...newRoom, type: e.target.value})} className="p-2 border rounded">
+                                        <option value="Informatica">Informatica</option>
+                                        <option value="Parrucchieri">Parrucchieri</option>
+                                        <option value="Didattica">Didattica</option>
+                                        <option value="Laboratorio">Laboratorio</option>
+                                    </select>
+                                    <label className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer">
+                                        <input type="checkbox" checked={newRoom.hasProjector} onChange={(e) => setNewRoom({...newRoom, hasProjector: e.target.checked})} className="w-4 h-4"/>
+                                        <span>Proiettore</span>
+                                    </label>
+                                </div>
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={addRoom} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
+                                    <button onClick={() => setShowAddRoom(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showEditRoom && editingRoom && (
+                            <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-300">
+                                <h3 className="font-bold mb-4">Modifica Aula</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input type="text" value={editingRoom.name} onChange={(e) => setEditingRoom({...editingRoom, name: e.target.value})} className="p-2 border rounded"/>
+                                    <input type="number" min="1" max="100" value={editingRoom.capacity} onChange={(e) => setEditingRoom({...editingRoom, capacity: e.target.value})} className="p-2 border rounded"/>
+                                    <select value={editingRoom.type} onChange={(e) => setEditingRoom({...editingRoom, type: e.target.value})} className="p-2 border rounded">
+                                        <option value="Informatica">Informatica</option>
+                                        <option value="Parrucchieri">Parrucchieri</option>
+                                        <option value="Didattica">Didattica</option>
+                                        <option value="Laboratorio">Laboratorio</option>
+                                    </select>
+                                    <label className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer">
+                                        <input type="checkbox" checked={editingRoom.hasProjector} onChange={(e) => setEditingRoom({...editingRoom, hasProjector: e.target.checked})} className="w-4 h-4"/>
+                                        <span>Proiettore</span>
+                                    </label>
+                                </div>
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={updateRoom} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
+                                    <button onClick={() => {setShowEditRoom(false); setEditingRoom(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {rooms.map(room => (
+                                <div key={room.id} className="border-2 rounded-lg p-6 hover:shadow-lg transition">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-bold text-gray-800">{room.name}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-sm px-2 py-1 bg-gray-200 rounded">{room.type}</span>
+                                                {room.hasProjector && <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded">🎥 Proiettore</span>}
+                                            </div>
+                                        </div>
+                                        <div className="bg-blue-100 px-3 py-1 rounded-full">
+                                            <span className="font-semibold text-blue-800">{room.capacity}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 pt-4 border-t">
+                                        <button onClick={() => { setEditingRoom({...room}); setShowEditRoom(true); }} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"><EditIcon />Modifica</button>
+                                        <button onClick={() => deleteRoom(room.id)} className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center gap-2"><Trash2Icon />Elimina</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+ReactDOM.render(<SchoolScheduleManager />, document.getElementById('root'));
+    </script>
+</body>
+</html>
