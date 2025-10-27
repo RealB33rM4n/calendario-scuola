@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>N.S.I. - Sistema Gestione Aule e Calendari</title>
+    <title>N.S.E. - Next School Engine</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -26,6 +26,12 @@ const CourseIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="
 const PlusIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>);
 const Trash2Icon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 4 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>);
 const EditIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>);
+const ClockIcon = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>);
+
+const TIME_SLOTS = [
+    '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', 
+    '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
+];
 
 const COURSE_COLORS = [
     { bg: 'bg-red-500', text: 'text-white', border: 'border-red-600', light: 'bg-red-50', badge: 'bg-red-100 text-red-800' },
@@ -43,19 +49,19 @@ const COURSE_COLORS = [
 const SchoolScheduleManager = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [teachers, setTeachers] = useState([
-        { id: 1, name: 'Andrea Adamoli', email: 'adamoli@scuola.it', subject: 'Gaming' },
-        { id: 2, name: 'Francesco Natali', email: 'natali@scuola.it', subject: 'Grafica' },
-        { id: 3, name: 'Francesco Acciai', email: 'acciai@scuola.it', subject: 'Informatica' },
-        { id: 4, name: 'Marco Guzzo', email: 'guzzo@scuola.it', subject: 'Programmazione' },
-        { id: 5, name: 'Matteoli Valentina', email: 'matteoli@scuola.it', subject: 'Materie di Base' },
-        { id: 6, name: 'Bucci Antonia', email: 'bucci@scuola.it', subject: 'Matematica' },
-        { id: 7, name: 'Fabbresci Milena', email: 'fabbresci@scuola.it', subject: 'Politica' }
+        { id: 1, name: 'Andrea Adamoli', email: 'adamoli@scuola.it', subject: 'Gaming', unavailability: [] },
+        { id: 2, name: 'Francesco Natali', email: 'natali@scuola.it', subject: 'Grafica', unavailability: [] },
+        { id: 3, name: 'Francesco Acciai', email: 'acciai@scuola.it', subject: 'Informatica', unavailability: [] },
+        { id: 4, name: 'Marco Guzzo', email: 'guzzo@scuola.it', subject: 'Programmazione', unavailability: [] },
+        { id: 5, name: 'Matteoli Valentina', email: 'matteoli@scuola.it', subject: 'Materie di Base', unavailability: [] },
+        { id: 6, name: 'Bucci Antonia', email: 'bucci@scuola.it', subject: 'Matematica', unavailability: [] },
+        { id: 7, name: 'Fabbresci Milena', email: 'fabbresci@scuola.it', subject: 'Politica', unavailability: [] }
     ]);
     const [rooms, setRooms] = useState([
         { id: 1, name: 'D. Calamandrei', capacity: 20, type: 'Informatica', hasProjector: true },
         { id: 2, name: 'Don L. Milani', capacity: 28, type: 'Parrucchieri', hasProjector: true },
         { id: 3, name: 'A. Turing', capacity: 25, type: 'Informatica', hasProjector: false },
-        { id: 4, name: 'Aula Piccola', capacity: 8, type: 'Didattica', hasProjector: false }
+        { id: 4, name: 'Aula Piccola', capacity: 12, type: 'Didattica', hasProjector: false }
     ]);
     const [lessons, setLessons] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -79,13 +85,13 @@ const SchoolScheduleManager = () => {
     const [newCourse, setNewCourse] = useState({
         name: '', totalHours: 0, maxDailyHours: 4, maxConsecutiveHours: 4,
         startDate: '', endDate: '', subjects: [], teachers: [],
-        stageStartDate: '', stageEndDate: '', numberOfStudents: ''
+        stageStartDate: '', stageEndDate: '', numberOfStudents: '', roomId: ''
     });
     const [newLesson, setNewLesson] = useState({
         teacherId: '', roomId: '', date: new Date().toISOString().split('T')[0],
         startTime: '09:00', duration: 1, subject: '', numberOfStudents: '', courseId: ''
     });
-    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subject: '' });
+    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subject: '', unavailability: [] });
     const [newRoom, setNewRoom] = useState({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
 
     const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -138,7 +144,97 @@ const SchoolScheduleManager = () => {
         return days;
     };
 
-    // Calcola le ore già programmate per un corso
+    // Funzione per verificare se un docente è disponibile in un determinato giorno e ora
+    const isTeacherAvailable = (teacherId, date, startTime) => {
+        const teacher = teachers.find(t => t.id === teacherId);
+        if (!teacher || !teacher.unavailability) return true;
+        
+        const dayOfWeek = new Date(date).getDay();
+        
+        for (const unavail of teacher.unavailability) {
+            // Se è un giorno intero (senza timeSlots o timeSlots vuoto)
+            if (unavail.day === dayOfWeek && (!unavail.timeSlots || unavail.timeSlots.length === 0)) {
+                return false; // Docente non disponibile per tutto il giorno
+            }
+            
+            // Se ha fasce orarie specifiche
+            if (unavail.day === dayOfWeek && unavail.timeSlots && unavail.timeSlots.includes(startTime)) {
+                return false; // Docente non disponibile in questa fascia oraria
+            }
+        }
+        
+        return true;
+    };
+
+    // Funzione per aggiungere indisponibilità  a un docente
+    const addUnavailability = (teacher, day, timeSlot) => {
+        const unavailability = teacher.unavailability || [];
+        
+        // Se timeSlot è null, significa che vuole bloccare tutto il giorno
+        if (timeSlot === null) {
+            // Rimuovi eventuali indisponibilità  orarie per questo giorno e aggiungi giorno intero
+            const otherDays = unavailability.filter(u => u.day !== day);
+            return {
+                ...teacher,
+                unavailability: [...otherDays, { day, timeSlots: [] }]
+            };
+        }
+        
+        // Altrimenti, aggiungi la fascia oraria specifica
+        const dayUnavail = unavailability.find(u => u.day === day);
+        
+        if (dayUnavail) {
+            // Se è un giorno intero bloccato, non fare nulla
+            if (!dayUnavail.timeSlots || dayUnavail.timeSlots.length === 0) {
+                return teacher;
+            }
+            
+            // Aggiungi la fascia oraria se non è già  presente
+            if (!dayUnavail.timeSlots.includes(timeSlot)) {
+                return {
+                    ...teacher,
+                    unavailability: unavailability.map(u => 
+                        u.day === day 
+                            ? { ...u, timeSlots: [...u.timeSlots, timeSlot] }
+                            : u
+                    )
+                };
+            }
+        } else {
+            return {
+                ...teacher,
+                unavailability: [...unavailability, { day, timeSlots: [timeSlot] }]
+            };
+        }
+        return teacher;
+    };
+
+    // Funzione per rimuovere indisponibilità 
+    const removeUnavailability = (teacher, day, timeSlot) => {
+        const unavailability = teacher.unavailability || [];
+        
+        // Se timeSlot è null, rimuovi l'intero giorno
+        if (timeSlot === null) {
+            return {
+                ...teacher,
+                unavailability: unavailability.filter(u => u.day !== day)
+            };
+        }
+        
+        // Altrimenti, rimuovi solo la fascia oraria specifica
+        return {
+            ...teacher,
+            unavailability: unavailability.map(u => {
+                if (u.day === day) {
+                    const newTimeSlots = (u.timeSlots || []).filter(ts => ts !== timeSlot);
+                    return { ...u, timeSlots: newTimeSlots };
+                }
+                return u;
+            }).filter(u => u.timeSlots && u.timeSlots.length > 0)
+        };
+    };
+
+    // Calcola le ore già  programmate per un corso
     const getCourseScheduledHours = (courseId) => {
         return lessons
             .filter(l => l.courseId === courseId)
@@ -173,7 +269,7 @@ const SchoolScheduleManager = () => {
                     (lessonEnd > existingStart && lessonEnd <= existingEnd) ||
                     (lessonStart <= existingStart && lessonEnd >= existingEnd)) {
                     const teacher = teachers.find(t => t.id === parseInt(lesson.teacherId));
-                    return `L'insegnante ${teacher?.name} ha già una lezione dalle ${existing.startTime} alle ${existingStart + existing.duration}:00`;
+                    return `L'insegnante ${teacher?.name} ha già  una lezione dalle ${existing.startTime} alle ${existingStart + existing.duration}:00`;
                 }
             }
         }
@@ -228,11 +324,11 @@ const SchoolScheduleManager = () => {
         });
 
         if (incompleteCourses.length === 0) {
-            alert('✅ Tutti i corsi sono già completamente calendarizzati!');
+            alert('✅ Tutti i corsi sono già  completamente calendarizzati!');
             return;
         }
 
-        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\nIl sistema ottimizzerà giornate, docenti e aule per massimizzare l'efficienza.`)) {
+        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\nIl sistema ottimizzerà  giornate, docenti e aule per massimizzare l'efficienza.`)) {
             return;
         }
 
@@ -345,170 +441,200 @@ const SchoolScheduleManager = () => {
             let currentHour = 9;
             let lessonsCreatedToday = 0;
 
-            while (currentHour < 18 && activeCourses.some(c => c.remainingHours > 0)) {
+while (currentHour < 18 && activeCourses.some(c => c.remainingHours > 0)) {
                 if (currentHour === 13) {
                     currentHour = 14;
                     continue;
                 }
 
-                let lessonCreated = false;
-
-                // Prova ogni corso attivo per questa fascia oraria
-                for (let course of activeCourses) {
-                    if (course.remainingHours <= 0) continue;
-
-                    // Verifica che il corso non abbia già raggiunto il limite giornaliero
-                    const courseHoursToday = existingLessonsToday
-                        .filter(l => l.courseId === course.id)
-                        .reduce((sum, l) => sum + l.duration, 0);
+                // NUOVA LOGICA: Riempie TUTTE le aule disponibili in questa fascia oraria
+                let canCreateMoreInThisSlot = true;
+                
+                while (canCreateMoreInThisSlot && activeCourses.some(c => c.remainingHours > 0)) {
+                    canCreateMoreInThisSlot = false;
                     
-                    if (courseHoursToday >= course.maxDailyHours) continue;
+                    // Prova TUTTI i corsi per questa fascia oraria
+                    for (let course of activeCourses) {
+                        if (course.remainingHours <= 0) continue;
 
-                    // Trova materia corrente
-                    const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
-                    if (course.currentSubjectIndex >= subjects.length) continue;
-                    
-                    const currentSubject = subjects[course.currentSubjectIndex];
-                    const remainingSubjectHours = currentSubject.hours - course.currentSubjectHours;
-                    
-                    if (remainingSubjectHours <= 0) {
-                        course.currentSubjectIndex++;
-                        course.currentSubjectHours = 0;
-                        continue;
-                    }
-
-                    // Trova aula disponibile
-                    const room = rooms.find(r => r.capacity >= course.numberOfStudents);
-                    if (!room) {
-                        if (!courseIssues[course.id]) courseIssues[course.id] = [];
-                        if (!courseIssues[course.id].includes(`❌ Nessuna aula per ${course.numberOfStudents} studenti`)) {
-                            courseIssues[course.id].push(`❌ Nessuna aula per ${course.numberOfStudents} studenti`);
-                        }
-                        continue;
-                    }
-
-                    // Trova docente disponibile - priorità a chi ha fatto meno ore oggi
-                    let teachersList = [];
-
-                    if (course.teachers && course.teachers.length > 0) {
-                        // Usa solo i docenti specificati nel corso
-                        teachersList = course.teachers
-                            .map(ct => ({
-                                ...ct,
-                                teacher: teachers.find(t => t.id === ct.teacherId),
-                                hoursToday: teacherDailyHours[ct.teacherId] || 0
-                            }))
-                            .filter(ct => ct.teacher)
-                            .sort((a, b) => a.hoursToday - b.hoursToday);
-                    } else {
-                        // IMPORTANTE: Se non specificato, usa TUTTI i docenti disponibili
-                        // Ordina per ore giornaliere per distribuire equamente il carico
-                        teachersList = teachers
-                            .map(t => ({
-                                teacherId: t.id,
-                                teacher: t,
-                                hoursToday: teacherDailyHours[t.id] || 0,
-                                hours: 999999 // Nessun limite specifico
-                            }))
-                            .sort((a, b) => a.hoursToday - b.hoursToday); // Prima chi ha fatto meno ore
-                    }
-
-                    if (teachersList.length === 0) {
-                        if (!courseIssues[course.id]) courseIssues[course.id] = [];
-                        if (!courseIssues[course.id].includes('❌ Nessun docente configurato')) {
-                            courseIssues[course.id].push('❌ Nessun docente configurato');
-                        }
-                        continue;
-                    }
-
-                    // Calcola durata ottimale
-                    const remainingBeforeLunch = currentHour < 13 ? 13 - currentHour : 999;
-                    const remainingInDay = currentHour < 13 ? 13 - currentHour : 18 - currentHour;
-                    const remainingForCourseToday = course.maxDailyHours - courseHoursToday;
-                    
-                    let lessonDuration = Math.min(
-                        course.maxConsecutiveHours,
-                        remainingSubjectHours,
-                        course.remainingHours,
-                        remainingForCourseToday,
-                        remainingBeforeLunch,
-                        remainingInDay
-                    );
-
-                    if (lessonDuration < 1) continue;
-
-                    // IMPORTANTE: Prova TUTTI i docenti fino a trovarne uno disponibile
-                    let selectedTeacher = null;
-                    
-                    for (let ct of teachersList) {
-                        const teacherHoursScheduled = existingLessonsToday
-                            .filter(l => l.teacherId === ct.teacherId)
+                        // Verifica limite giornaliero del corso
+                        const courseHoursToday = existingLessonsToday
+                            .filter(l => l.courseId === course.id)
                             .reduce((sum, l) => sum + l.duration, 0);
                         
-                        // Verifica se il docente può fare più ore (target 8h al giorno)
-                        if (teacherHoursScheduled >= 8) continue;
+                        if (courseHoursToday >= course.maxDailyHours) continue;
 
-                        // Controlla disponibilità slot
-                        const slot = findNextAvailableSlot(
-                            dateStr, 
-                            currentHour, 
-                            lessonDuration, 
-                            room.id, 
-                            ct.teacherId, 
-                            existingLessonsToday
-                        );
-
-                        if (slot && slot.hour === currentHour) {
-                            selectedTeacher = ct.teacher;
-                            lessonDuration = slot.duration;
-                            break; // Trovato docente disponibile
-                        }
-                    }
-
-                    if (!selectedTeacher) continue;
-
-                    // Crea la lezione
-                    const tempLesson = {
-                        teacherId: selectedTeacher.id,
-                        roomId: room.id,
-                        date: dateStr,
-                        dayOfWeek: italianDays[currentDate.getDay()],
-                        startTime: `${currentHour.toString().padStart(2, '0')}:00`,
-                        duration: lessonDuration,
-                        subject: currentSubject.name,
-                        courseId: course.id,
-                        numberOfStudents: course.numberOfStudents
-                    };
-
-                    const conflict = checkConflict(tempLesson, existingLessonsToday);
-                    if (!conflict) {
-                        newLessons.push({
-                            id: Date.now() + newLessons.length + Math.random(),
-                            ...tempLesson
+                        // BUGFIX v3.0.3: Verifica che il corso NON sia già presente in questa fascia oraria
+                        const courseAlreadyInThisSlot = existingLessonsToday.some(l => {
+                            if (l.courseId !== course.id) return false;
+                            const lessonStart = parseInt(l.startTime.split(':')[0]);
+                            const lessonEnd = lessonStart + l.duration;
+                            return currentHour >= lessonStart && currentHour < lessonEnd;
                         });
                         
-                        existingLessonsToday.push(tempLesson);
-                        course.remainingHours -= lessonDuration;
-                        course.currentSubjectHours += lessonDuration;
-                        teacherDailyHours[selectedTeacher.id] += lessonDuration;
-                        totalScheduledHours += lessonDuration;
-                        lessonsCreatedToday++;
+                        if (courseAlreadyInThisSlot) continue; // Il corso è già calendarizzato in questa fascia oraria
 
-                        if (course.currentSubjectHours >= currentSubject.hours) {
+                        // Trova materia corrente
+                        const subjects = course.subjects.length > 0 ? course.subjects : [{name: course.name, hours: course.totalHours}];
+                        if (course.currentSubjectIndex >= subjects.length) continue;
+                        
+                        const currentSubject = subjects[course.currentSubjectIndex];
+                        const remainingSubjectHours = currentSubject.hours - course.currentSubjectHours;
+                        
+                        if (remainingSubjectHours <= 0) {
                             course.currentSubjectIndex++;
                             course.currentSubjectHours = 0;
+                            continue;
                         }
 
-                        currentHour += lessonDuration;
-                        lessonCreated = true;
-                        break; // Passa alla prossima fascia oraria
+                        // IMPORTANTE: Gestione aule assegnate vs aule libere
+                        let availableRooms = [];
+
+                        if (course.roomId) {
+                            // Il corso HA un'aula assegnata - usa SOLO quella
+                            const assignedRoom = rooms.find(r => r.id === course.roomId);
+                            if (assignedRoom && assignedRoom.capacity >= course.numberOfStudents) {
+                                // Verifica se l'aula assegnata è libera
+                                const roomBusy = existingLessonsToday.some(l => {
+                                    if (l.roomId !== assignedRoom.id) return false;
+                                    const lessonStart = parseInt(l.startTime.split(':')[0]);
+                                    const lessonEnd = lessonStart + l.duration;
+                                    return currentHour >= lessonStart && currentHour < lessonEnd;
+                                });
+                                if (!roomBusy) {
+                                    availableRooms.push(assignedRoom);
+                                }
+                                // IMPORTANTE: Se l'aula assegnata è occupata, NON cercare altre aule
+                                // Il corso deve aspettare che la sua aula si liberi
+                            }
+                        } else {
+                            // Il corso NON ha un'aula assegnata - usa qualsiasi aula disponibile
+                            availableRooms = rooms.filter(r => {
+                                if (r.capacity < course.numberOfStudents) return false;
+                                
+                                // Verifica se l'aula è libera in questa fascia oraria
+                                const roomBusy = existingLessonsToday.some(l => {
+                                    if (l.roomId !== r.id) return false;
+                                    const lessonStart = parseInt(l.startTime.split(':')[0]);
+                                    const lessonEnd = lessonStart + l.duration;
+                                    return currentHour >= lessonStart && currentHour < lessonEnd;
+                                });
+                                return !roomBusy;
+                            });
+                        }
+                        
+                        if (availableRooms.length === 0) continue;
+                        const room = availableRooms[0];
+
+                        // Trova docente disponibile
+                        let teachersList = [];
+                        if (course.teachers && course.teachers.length > 0) {
+                            teachersList = course.teachers
+                                .map(ct => ({
+                                    ...ct,
+                                    teacher: teachers.find(t => t.id === ct.teacherId),
+                                    hoursToday: teacherDailyHours[ct.teacherId] || 0
+                                }))
+                                .filter(ct => ct.teacher)
+                                .sort((a, b) => a.hoursToday - b.hoursToday);
+                        } else {
+                            teachersList = teachers
+                                .map(t => ({
+                                    teacherId: t.id,
+                                    teacher: t,
+                                    hoursToday: teacherDailyHours[t.id] || 0,
+                                    hours: 999999
+                                }))
+                                .sort((a, b) => a.hoursToday - b.hoursToday);
+                        }
+
+                        if (teachersList.length === 0) {
+                            if (!courseIssues[course.id]) courseIssues[course.id] = [];
+                            if (!courseIssues[course.id].includes('❌ Nessun docente configurato')) {
+                                courseIssues[course.id].push('❌ Nessun docente configurato');
+                            }
+                            continue;
+                        }
+
+                        // Calcola durata ottimale
+                        const remainingBeforeLunch = currentHour < 13 ? 13 - currentHour : 999;
+                        const remainingInDay = currentHour < 13 ? 13 - currentHour : 18 - currentHour;
+                        const remainingForCourseToday = course.maxDailyHours - courseHoursToday;
+                        
+                        let lessonDuration = Math.min(
+                            course.maxConsecutiveHours,
+                            remainingSubjectHours,
+                            course.remainingHours,
+                            remainingForCourseToday,
+                            remainingBeforeLunch,
+                            remainingInDay
+                        );
+
+                        if (lessonDuration < 1) continue;
+
+                        // Cerca docente disponibile
+                        let selectedTeacher = null;
+                        for (let ct of teachersList) {
+                            const teacherHoursScheduled = existingLessonsToday
+                                .filter(l => l.teacherId === ct.teacherId)
+                                .reduce((sum, l) => sum + l.duration, 0);
+                            
+                            if (teacherHoursScheduled >= 8) continue;
+
+                            const startTimeStr = `${currentHour.toString().padStart(2, '0')}:00`;
+                            if (!isTeacherAvailable(ct.teacherId, dateStr, startTimeStr)) continue;
+
+                            const slot = findNextAvailableSlot(dateStr, currentHour, lessonDuration, room.id, ct.teacherId, existingLessonsToday);
+                            if (slot && slot.hour === currentHour) {
+                                selectedTeacher = ct.teacher;
+                                lessonDuration = slot.duration;
+                                break;
+                            }
+                        }
+
+                        if (!selectedTeacher) continue;
+
+                        // Crea la lezione
+                        const tempLesson = {
+                            teacherId: selectedTeacher.id,
+                            roomId: room.id,
+                            date: dateStr,
+                            dayOfWeek: italianDays[currentDate.getDay()],
+                            startTime: `${currentHour.toString().padStart(2, '0')}:00`,
+                            duration: lessonDuration,
+                            subject: currentSubject.name,
+                            courseId: course.id,
+                            numberOfStudents: course.numberOfStudents
+                        };
+
+                        const conflict = checkConflict(tempLesson, existingLessonsToday);
+                        if (!conflict) {
+                            newLessons.push({
+                                id: Date.now() + newLessons.length + Math.random(),
+                                ...tempLesson
+                            });
+                            
+                            existingLessonsToday.push(tempLesson);
+                            course.remainingHours -= lessonDuration;
+                            course.currentSubjectHours += lessonDuration;
+                            teacherDailyHours[selectedTeacher.id] += lessonDuration;
+                            totalScheduledHours += lessonDuration;
+                            lessonsCreatedToday++;
+
+                            if (course.currentSubjectHours >= currentSubject.hours) {
+                                course.currentSubjectIndex++;
+                                course.currentSubjectHours = 0;
+                            }
+
+                            // IMPORTANTE: NON incrementare currentHour qui!
+                            // Continua a provare altri corsi nella STESSA fascia oraria
+                            canCreateMoreInThisSlot = true;
+                        }
                     }
                 }
 
-                // Se nessun corso ha potuto creare una lezione, avanza di un'ora
-                if (!lessonCreated) {
-                    currentHour++;
-                }
+                // Solo ora passa alla prossima fascia oraria
+                currentHour++;
             }
             
             if (lessonsCreatedToday > 0) {
@@ -536,7 +662,7 @@ const SchoolScheduleManager = () => {
                   `📅 Giorni utilizzati: ${daysWithLessons}/${daysProcessed}`;
             
             if (partialCourses.length > 0) {
-                message += '\n\n⚠️ CORSI NON COMPLETATI:';
+                message += '\n\n⚠️ï¸ CORSI NON COMPLETATI:';
                 partialCourses.forEach(c => {
                     message += `\n\n📚 ${c.name}:`;
                     message += `\n  • Ore mancanti: ${c.remainingHours}h`;
@@ -603,10 +729,10 @@ const SchoolScheduleManager = () => {
             return;
         }
 
-        // Calcola ore già programmate
+        // Calcola ore già  programmate
         const alreadyScheduled = getCourseScheduledHours(course.id);
         if (alreadyScheduled >= course.totalHours) {
-            alert('⚠️ Il corso è già completamente calendarizzato!');
+            alert('⚠️ï¸ Il corso è già  completamente calendarizzato!');
             return;
         }
 
@@ -617,7 +743,7 @@ const SchoolScheduleManager = () => {
         const stageEnd = course.stageEndDate ? new Date(course.stageEndDate) : null;
 
         let currentDate = new Date(startDate);
-        let totalScheduledHours = alreadyScheduled; // IMPORTANTE: Inizia dalle ore già programmate
+        let totalScheduledHours = alreadyScheduled; // IMPORTANTE: Inizia dalle ore già  programmate
         let subjectIndex = 0;
         let currentSubjectHours = 0;
 
@@ -638,7 +764,20 @@ const SchoolScheduleManager = () => {
             if (subjectIndex >= subjects.length) break;
             
             const currentSubject = subjects[subjectIndex];
-            const room = rooms.find(r => r.capacity >= course.numberOfStudents);
+            
+            // PRIORITÀ: Se il corso ha un'aula assegnata, usa quella
+            let room = null;
+            if (course.roomId) {
+                const assignedRoom = rooms.find(r => r.id === course.roomId);
+                if (assignedRoom && assignedRoom.capacity >= course.numberOfStudents) {
+                    room = assignedRoom;
+                }
+            }
+            
+            // Se non ha aula assegnata o l'aula assegnata non è adatta, cerca qualsiasi aula disponibile
+            if (!room) {
+                room = rooms.find(r => r.capacity >= course.numberOfStudents);
+            }
 
             if (!room) {
                 alert(`ERRORE: Nessuna aula disponibile con almeno ${course.numberOfStudents} posti.`);
@@ -700,6 +839,12 @@ const SchoolScheduleManager = () => {
                         const scheduledForThisTeacher = teacherHoursScheduled[courseTeacher.teacherId] || 0;
                         if (scheduledForThisTeacher >= courseTeacher.hours) continue;
                         
+                        // NUOVO: Verifica disponibilità  del docente per questo giorno/ora
+                        const startTimeStr = `${currentHour.toString().padStart(2, '0')}:00`;
+                        if (!isTeacherAvailable(courseTeacher.teacherId, dateStr, startTimeStr)) {
+                            continue; // Salta questo docente se non disponibile
+                        }
+                        
                         const slot = findNextAvailableSlot(dateStr, currentHour, lessonDuration, room.id, courseTeacher.teacherId, existingLessonsToday);
                         if (slot && slot.hour === currentHour) {
                             selectedTeacher = teachers.find(t => t.id === courseTeacher.teacherId);
@@ -709,7 +854,7 @@ const SchoolScheduleManager = () => {
                     }
                 } else {
                     // IMPORTANTE: Se non specificato, prova TUTTI i docenti disponibili
-                    // Ordina per ore già programmate oggi (chi ha fatto meno ore ha priorità)
+                    // Ordina per ore già  programmate oggi (chi ha fatto meno ore ha priorità )
                     const availableTeachers = teachers
                         .map(t => ({
                             teacher: t,
@@ -721,6 +866,12 @@ const SchoolScheduleManager = () => {
                     
                     // Prova ogni docente fino a trovarne uno disponibile
                     for (let {teacher} of availableTeachers) {
+                        // NUOVO: Verifica disponibilità  del docente per questo giorno/ora
+                        const startTimeStr = `${currentHour.toString().padStart(2, '0')}:00`;
+                        if (!isTeacherAvailable(teacher.id, dateStr, startTimeStr)) {
+                            continue; // Salta questo docente se non disponibile
+                        }
+                        
                         const slot = findNextAvailableSlot(dateStr, currentHour, lessonDuration, room.id, teacher.id, existingLessonsToday);
                         if (slot && slot.hour === currentHour) {
                             selectedTeacher = teacher;
@@ -788,6 +939,13 @@ const SchoolScheduleManager = () => {
 
     const addLesson = () => {
         if (newLesson.teacherId && newLesson.roomId && newLesson.subject && newLesson.date && newLesson.numberOfStudents) {
+            // NUOVO: Verifica disponibilità  del docente
+            if (!isTeacherAvailable(parseInt(newLesson.teacherId), newLesson.date, newLesson.startTime)) {
+                const teacher = teachers.find(t => t.id === parseInt(newLesson.teacherId));
+                alert(`⚠️ï¸ Il docente ${teacher?.name} non è disponibile in questa data/orario!\n\nVerifica le indisponibilità  del docente nella sezione Docenti.`);
+                return;
+            }
+            
             const conflict = checkConflict(newLesson);
             if (conflict) {
                 alert(`Errore: ${conflict}`);
@@ -802,7 +960,7 @@ const SchoolScheduleManager = () => {
                     const currentScheduled = getCourseScheduledHours(courseId);
                     const newTotal = currentScheduled + parseInt(newLesson.duration);
                     if (newTotal > course.totalHours) {
-                        alert(`⚠️ Attenzione! Questa lezione porterebbe il corso a ${newTotal}h su ${course.totalHours}h totali (${((newTotal/course.totalHours)*100).toFixed(1)}%).\n\nIl corso verrebbe programmato oltre il 100%.`);
+                        alert(`⚠️ï¸ Attenzione! Questa lezione porterebbe il corso a ${newTotal}h su ${course.totalHours}h totali (${((newTotal/course.totalHours)*100).toFixed(1)}%).\n\nIl corso verrebbe programmato oltre il 100%.`);
                         if (!window.confirm('Vuoi procedere comunque?')) {
                             return;
                         }
@@ -852,6 +1010,13 @@ const SchoolScheduleManager = () => {
 
     const updateLessonDetails = () => {
         if (editingLesson.teacherId && editingLesson.roomId && editingLesson.subject && editingLesson.numberOfStudents) {
+            // NUOVO: Verifica disponibilità  del docente
+            if (!isTeacherAvailable(parseInt(editingLesson.teacherId), editingLesson.date, editingLesson.startTime)) {
+                const teacher = teachers.find(t => t.id === parseInt(editingLesson.teacherId));
+                alert(`⚠️ï¸ Il docente ${teacher?.name} non è disponibile in questa data/orario!\n\nVerifica le indisponibilità  del docente nella sezione Docenti.`);
+                return;
+            }
+            
             const conflict = checkConflict(editingLesson);
             if (conflict) {
                 alert(`Errore: ${conflict}`);
@@ -868,7 +1033,7 @@ const SchoolScheduleManager = () => {
                     const durationDiff = parseInt(editingLesson.duration) - oldLesson.duration;
                     const newTotal = currentScheduled + durationDiff;
                     if (newTotal > course.totalHours && durationDiff > 0) {
-                        alert(`⚠️ Attenzione! Questa modifica porterebbe il corso a ${newTotal}h su ${course.totalHours}h (${((newTotal/course.totalHours)*100).toFixed(1)}%).`);
+                        alert(`⚠️ï¸ Attenzione! Questa modifica porterebbe il corso a ${newTotal}h su ${course.totalHours}h (${((newTotal/course.totalHours)*100).toFixed(1)}%).`);
                         if (!window.confirm('Vuoi procedere comunque?')) {
                             return;
                         }
@@ -899,6 +1064,7 @@ const SchoolScheduleManager = () => {
                 maxDailyHours: parseInt(newCourse.maxDailyHours),
                 maxConsecutiveHours: parseInt(newCourse.maxConsecutiveHours),
                 numberOfStudents: parseInt(newCourse.numberOfStudents),
+                roomId: newCourse.roomId ? parseInt(newCourse.roomId) : undefined,
                 teachers: (newCourse.teachers || []).map(t => ({
                     teacherId: parseInt(t.teacherId),
                     hours: parseInt(t.hours)
@@ -908,7 +1074,7 @@ const SchoolScheduleManager = () => {
             setNewCourse({
                 name: '', totalHours: 0, maxDailyHours: 4, maxConsecutiveHours: 4,
                 startDate: '', endDate: '', subjects: [], teachers: [],
-                stageStartDate: '', stageEndDate: '', numberOfStudents: ''
+                stageStartDate: '', stageEndDate: '', numberOfStudents: '', roomId: ''
             });
             setShowAddCourse(false);
         }
@@ -920,7 +1086,7 @@ const SchoolScheduleManager = () => {
             const currentScheduled = getCourseScheduledHours(editingCourse.id);
             const newTotalHours = parseInt(editingCourse.totalHours);
             if (newTotalHours < currentScheduled) {
-                alert(`⚠️ Attenzione! Hai già ${currentScheduled}h programmate per questo corso.\nNon puoi impostare il totale a ${newTotalHours}h.`);
+                alert(`⚠️ï¸ Attenzione! Hai già  ${currentScheduled}h programmate per questo corso.\nNon puoi impostare il totale a ${newTotalHours}h.`);
                 return;
             }
             
@@ -930,6 +1096,7 @@ const SchoolScheduleManager = () => {
                 maxDailyHours: parseInt(editingCourse.maxDailyHours),
                 maxConsecutiveHours: parseInt(editingCourse.maxConsecutiveHours),
                 numberOfStudents: parseInt(editingCourse.numberOfStudents),
+                roomId: editingCourse.roomId ? parseInt(editingCourse.roomId) : undefined,
                 teachers: (editingCourse.teachers || []).map(t => ({
                     teacherId: parseInt(t.teacherId),
                     hours: parseInt(t.hours)
@@ -949,8 +1116,8 @@ const SchoolScheduleManager = () => {
 
     const addTeacher = () => {
         if (newTeacher.name && newTeacher.email) {
-            setTeachers([...teachers, { ...newTeacher, id: Date.now() }]);
-            setNewTeacher({ name: '', email: '', subject: '' });
+            setTeachers([...teachers, { ...newTeacher, id: Date.now(), unavailability: [] }]);
+            setNewTeacher({ name: '', email: '', subject: '', unavailability: [] });
             setShowAddTeacher(false);
         }
     };
@@ -1019,19 +1186,159 @@ const SchoolScheduleManager = () => {
         setCourseState({...courseState, teachers: courseState.teachers.filter((_, i) => i !== index)});
     };
 
+    // Componente per gestire le indisponibilità  dei docenti
+    const UnavailabilityManager = ({ teacher, onUpdate }) => {
+        const [selectedDay, setSelectedDay] = useState(1); // Lunedì
+        const [selectedTime, setSelectedTime] = useState('09:00');
+        const [isFullDay, setIsFullDay] = useState(false);
+
+        const handleAddUnavailability = () => {
+            const updated = addUnavailability(teacher, selectedDay, isFullDay ? null : selectedTime);
+            onUpdate(updated);
+        };
+
+        const handleRemoveUnavailability = (day, timeSlot) => {
+            const updated = removeUnavailability(teacher, day, timeSlot);
+            onUpdate(updated);
+        };
+
+        const getUnavailabilityForDay = (day) => {
+            const dayUnavail = (teacher.unavailability || []).find(u => u.day === day);
+            return dayUnavail ? dayUnavail : null;
+        };
+
+        const isFullDayBlocked = (day) => {
+            const dayUnavail = getUnavailabilityForDay(day);
+            return dayUnavail && (!dayUnavail.timeSlots || dayUnavail.timeSlots.length === 0);
+        };
+
+        return (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-yellow-300">
+                <h4 className="font-bold mb-3 flex items-center gap-2">
+                    <ClockIcon />
+                    Gestione Indisponibilità 
+                </h4>
+                
+                <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                        <strong>Come funziona:</strong> Seleziona i giorni e le fasce orarie in cui il docente NON è disponibile per fare lezione.
+                        Puoi bloccare un giorno intero oppure solo fasce orarie specifiche.
+                    </p>
+                </div>
+
+                <div className="space-y-3 mb-3">
+                    <select 
+                        value={selectedDay} 
+                        onChange={(e) => setSelectedDay(parseInt(e.target.value))}
+                        className="w-full p-2 border rounded"
+                    >
+                        {italianDays.slice(1, 6).map((day, idx) => (
+                            <option key={idx + 1} value={idx + 1}>
+                                {day}
+                            </option>
+                        ))}
+                    </select>
+
+                    <label className="flex items-center gap-2 p-2 border rounded bg-white cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={isFullDay} 
+                            onChange={(e) => setIsFullDay(e.target.checked)}
+                            className="w-4 h-4"
+                        />
+                        <span>Blocca l'intero giorno</span>
+                    </label>
+
+                    {!isFullDay && (
+                        <select 
+                            value={selectedTime} 
+                            onChange={(e) => setSelectedTime(e.target.value)}
+                            className="w-full p-2 border rounded"
+                        >
+                            {TIME_SLOTS.map(time => (
+                                <option key={time} value={time}>{time}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+
+                <button 
+                    onClick={handleAddUnavailability}
+                    className="w-full px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center justify-center gap-2 mb-4"
+                >
+                    <PlusIcon />
+                    {isFullDay ? 'Blocca Giorno Intero' : 'Aggiungi Fascia Oraria'}
+                </button>
+
+                <div className="space-y-2">
+                    <h5 className="font-semibold text-sm text-gray-700">Indisponibilità  Attuali:</h5>
+                    {italianDays.slice(1, 6).map((dayName, idx) => {
+                        const dayNum = idx + 1;
+                        const dayUnavail = getUnavailabilityForDay(dayNum);
+                        if (!dayUnavail) return null;
+                        
+                        const fullDay = isFullDayBlocked(dayNum);
+                        
+                        return (
+                            <div key={dayNum} className="bg-white p-2 rounded border">
+                                <div className="font-semibold text-sm mb-1 flex items-center justify-between">
+                                    <span>{dayName}</span>
+                                    {fullDay && (
+                                        <button
+                                            onClick={() => handleRemoveUnavailability(dayNum, null)}
+                                            className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200"
+                                        >
+                                            Rimuovi blocco giorno
+                                        </button>
+                                    )}
+                                </div>
+                                {fullDay ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-900 rounded text-xs font-bold">
+                                        🚫 GIORNO INTERO BLOCCATO
+                                    </span>
+                                ) : (
+                                    <div className="flex flex-wrap gap-1">
+                                        {(dayUnavail.timeSlots || []).map(time => (
+                                            <span 
+                                                key={time}
+                                                className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded text-xs"
+                                            >
+                                                {time}
+                                                <button
+                                                    onClick={() => handleRemoveUnavailability(dayNum, time)}
+                                                    className="hover:bg-red-200 rounded-full"
+                                                >
+                                                    —
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                    {(teacher.unavailability || []).length === 0 && (
+                        <p className="text-sm text-gray-500 italic">Nessuna indisponibilità  impostata</p>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-6 mb-6 text-white">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h1 className="text-3xl font-bold mb-2">Sistema Gestione Aule e Calendari</h1>
-                            <p className="text-blue-100">✅ Gestione ore corso al 100% - Pausa pranzo 13:00-14:00</p>
+                            <h1 className="text-3xl font-bold mb-2">N.S.E. - Next School Engine</h1>
+                            <p className="text-blue-100">🚀 v3.0.2 - Sistema Gestione Aule, Docenti e Calendari</p>
+                            <p className="text-blue-100">Calendarizzazione Parallela + Rispetto Aule Assegnate</p>
                         </div>
                         <div className="text-right">
                             <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
                                 <div className="text-xs text-blue-100">Versione</div>
-                                <div className="text-2xl font-bold">2.5.1</div>
+                                <div className="text-2xl font-bold">3.0.2</div>
                             </div>
                         </div>
                     </div>
@@ -1226,7 +1533,7 @@ const SchoolScheduleManager = () => {
                                 <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
                                     <div className="flex justify-between items-start mb-4">
                                         <h3 className="text-xl font-bold text-blue-900">📋 Dettagli Lezione</h3>
-                                        <button onClick={() => setSelectedLesson(null)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                                        <button onClick={() => setSelectedLesson(null)} className="text-gray-500 hover:text-gray-700 text-2xl">—</button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div><p className="text-sm text-gray-600 font-semibold">Materia:</p><p className="text-lg">{selectedLesson.subject}</p></div>
@@ -1392,12 +1699,13 @@ const SchoolScheduleManager = () => {
                         </div>
 
                         <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-300">
-                            <p className="text-sm text-green-900 mb-2"><strong>🚀 Calendarizzazione Globale Ottimizzata:</strong></p>
+                            <p className="text-sm text-green-900 mb-2"><strong>🚀 Calendarizzazione Globale Ottimizzata v3.0.3:</strong></p>
                             <ul className="text-sm text-green-800 space-y-1 ml-4">
                                 <li>• Ottimizza tutti i corsi insieme alternando docenti e aule</li>
                                 <li>• Massimizza l'utilizzo docenti: target 8h al giorno per docente</li>
                                 <li>• Nessuna pausa tra docenti (tranne pranzo 13:00-14:00)</li>
                                 <li>• Rispetta sempre il 100% delle ore per ogni corso</li>
+                                <li>• ✅ BUGFIX: Previene doppia calendarizzazione corso nella stessa ora</li>
                             </ul>
                         </div>
 
@@ -1414,6 +1722,14 @@ const SchoolScheduleManager = () => {
                                     <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={newCourse.numberOfStudents} onChange={(e) => setNewCourse({...newCourse, numberOfStudents: e.target.value})} placeholder="Es: 25" className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={newCourse.maxDailyHours} onChange={(e) => setNewCourse({...newCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={newCourse.maxConsecutiveHours} onChange={(e) => setNewCourse({...newCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Aula Assegnata (opzionale)</label>
+                                        <select value={newCourse.roomId} onChange={(e) => setNewCourse({...newCourse, roomId: e.target.value})} className="w-full p-2 border rounded">
+                                            <option value="">Nessuna aula fissa (usa qualsiasi aula disponibile)</option>
+                                            {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - {r.capacity} posti ({r.type})</option>)}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">💡 Se selezioni un'aula, tutte le lezioni del corso verranno programmate in quella aula (se disponibile)</p>
+                                    </div>
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium mb-1">Date Corso</label>
                                         <div className="grid grid-cols-2 gap-4">
@@ -1481,6 +1797,14 @@ const SchoolScheduleManager = () => {
                                     <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={editingCourse.numberOfStudents} onChange={(e) => setEditingCourse({...editingCourse, numberOfStudents: e.target.value})} placeholder="Es: 25" className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={editingCourse.maxDailyHours} onChange={(e) => setEditingCourse({...editingCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={editingCourse.maxConsecutiveHours} onChange={(e) => setEditingCourse({...editingCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Aula Assegnata (opzionale)</label>
+                                        <select value={editingCourse.roomId || ''} onChange={(e) => setEditingCourse({...editingCourse, roomId: e.target.value})} className="w-full p-2 border rounded">
+                                            <option value="">Nessuna aula fissa (usa qualsiasi aula disponibile)</option>
+                                            {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - {r.capacity} posti ({r.type})</option>)}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">💡 Se selezioni un'aula, tutte le lezioni del corso verranno programmate in quella aula (se disponibile)</p>
+                                    </div>
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium mb-1">Date Corso</label>
                                         <div className="grid grid-cols-2 gap-4">
@@ -1560,6 +1884,14 @@ const SchoolScheduleManager = () => {
                                                     <div className="flex gap-2 mt-2 flex-wrap">
                                                         <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>{course.totalHours}h</span>
                                                         <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>👥 {course.numberOfStudents}</span>
+                                                        {course.roomId && (() => {
+                                                            const assignedRoom = rooms.find(r => r.id === course.roomId);
+                                                            return assignedRoom ? (
+                                                                <span className={`text-sm px-2 py-1 rounded bg-purple-100 text-purple-800 font-semibold`}>
+                                                                    🏫 {assignedRoom.name}
+                                                                </span>
+                                                            ) : null;
+                                                        })()}
                                                         <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>Max {course.maxDailyHours}h/giorno</span>
                                                     </div>
                                                 </div>
@@ -1631,32 +1963,54 @@ const SchoolScheduleManager = () => {
                         {showEditTeacher && editingTeacher && (
                             <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-300">
                                 <h3 className="font-bold mb-4">Modifica Insegnante</h3>
-                                <div className="space-y-3">
+                                <div className="space-y-3 mb-4">
                                     <input type="text" value={editingTeacher.name} onChange={(e) => setEditingTeacher({...editingTeacher, name: e.target.value})} className="w-full p-2 border rounded"/>
                                     <input type="email" value={editingTeacher.email} onChange={(e) => setEditingTeacher({...editingTeacher, email: e.target.value})} className="w-full p-2 border rounded"/>
                                     <input type="text" value={editingTeacher.subject} onChange={(e) => setEditingTeacher({...editingTeacher, subject: e.target.value})} className="w-full p-2 border rounded"/>
-                                    <div className="flex gap-2">
-                                        <button onClick={updateTeacher} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
-                                        <button onClick={() => {setShowEditTeacher(false); setEditingTeacher(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
-                                    </div>
+                                </div>
+                                
+                                <UnavailabilityManager 
+                                    teacher={editingTeacher} 
+                                    onUpdate={(updated) => setEditingTeacher(updated)}
+                                />
+
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={updateTeacher} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
+                                    <button onClick={() => {setShowEditTeacher(false); setEditingTeacher(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
                                 </div>
                             </div>
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {teachers.map(teacher => (
-                                <div key={teacher.id} className="border-2 rounded-lg p-4 hover:shadow-lg transition">
-                                    <div className="mb-4">
-                                        <h3 className="font-bold text-lg">{teacher.name}</h3>
-                                        <p className="text-gray-600">{teacher.subject}</p>
-                                        <p className="text-sm text-gray-500">{teacher.email}</p>
+                            {teachers.map(teacher => {
+                                const hasUnavailability = (teacher.unavailability || []).length > 0;
+                                const unavailCount = (teacher.unavailability || []).reduce((sum, u) => {
+                                    // Se è un giorno intero bloccato, conta come 1
+                                    if (!u.timeSlots || u.timeSlots.length === 0) return sum + 1;
+                                    // Altrimenti conta le fasce orarie
+                                    return sum + u.timeSlots.length;
+                                }, 0);
+                                
+                                return (
+                                    <div key={teacher.id} className="border-2 rounded-lg p-4 hover:shadow-lg transition">
+                                        <div className="mb-4">
+                                            <h3 className="font-bold text-lg">{teacher.name}</h3>
+                                            <p className="text-gray-600">{teacher.subject}</p>
+                                            <p className="text-sm text-gray-500">{teacher.email}</p>
+                                            {hasUnavailability && (
+                                                <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
+                                                    <ClockIcon />
+                                                    {unavailCount} indisponibilità 
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2 pt-4 border-t">
+                                            <button onClick={() => { setEditingTeacher({...teacher}); setShowEditTeacher(true); }} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"><EditIcon />Modifica</button>
+                                            <button onClick={() => deleteTeacher(teacher.id)} className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center gap-2"><Trash2Icon />Elimina</button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2 pt-4 border-t">
-                                        <button onClick={() => { setEditingTeacher({...teacher}); setShowEditTeacher(true); }} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"><EditIcon />Modifica</button>
-                                        <button onClick={() => deleteTeacher(teacher.id)} className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center justify-center gap-2"><Trash2Icon />Elimina</button>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}
