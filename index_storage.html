@@ -165,7 +165,7 @@ const SchoolScheduleManager = () => {
     // 🔥 NUOVO: Funzioni Export/Import
     const exportData = () => {
         const data = {
-            version: '3.2.1',
+            version: '3.2.3',
             exportDate: new Date().toISOString(),
             subjects,
             teachers,
@@ -419,12 +419,8 @@ const SchoolScheduleManager = () => {
     const findNextAvailableSlot = (dateStr, startHour, duration, roomId, teacherId, existingLessons) => {
         let currentHour = startHour;
         while (currentHour < 18) {
-            if (currentHour === 13) { currentHour = 14; continue; }
             let canFit = true;
             let actualDuration = duration;
-            if (currentHour < 13 && currentHour + duration > 13) {
-                actualDuration = 13 - currentHour;
-            }
             const endHour = currentHour + actualDuration;
             
             for (let lesson of existingLessons) {
@@ -575,11 +571,6 @@ const SchoolScheduleManager = () => {
             let lessonsCreatedToday = 0;
 
             while (currentHour < 18 && activeCourses.some(c => c.remainingHours > 0)) {
-                if (currentHour === 13) {
-                    currentHour = 14;
-                    continue;
-                }
-
                 let canCreateMoreInThisSlot = true;
                 
                 while (canCreateMoreInThisSlot && activeCourses.some(c => c.remainingHours > 0)) {
@@ -676,8 +667,7 @@ const SchoolScheduleManager = () => {
                             continue;
                         }
 
-                        const remainingBeforeLunch = currentHour < 13 ? 13 - currentHour : 999;
-                        const remainingInDay = currentHour < 13 ? 13 - currentHour : 18 - currentHour;
+                        const remainingInDay = 18 - currentHour;
                         const remainingForCourseToday = course.maxDailyHours - courseHoursToday;
                         
                         let lessonDuration = Math.min(
@@ -685,7 +675,6 @@ const SchoolScheduleManager = () => {
                             remainingSubjectHours,
                             course.remainingHours,
                             remainingForCourseToday,
-                            remainingBeforeLunch,
                             remainingInDay
                         );
 
@@ -919,7 +908,6 @@ const SchoolScheduleManager = () => {
             while (hoursScheduledToday < maxHoursToday && currentHour < 18 && totalScheduledHours < course.totalHours) {
                 const remainingSubjectHours = currentSubject.hours - currentSubjectHours;
                 const remainingTodayHours = maxHoursToday - hoursScheduledToday;
-                const remainingBeforeLunch = currentHour < 13 ? 13 - currentHour : 0;
                 const stillNeeded = course.totalHours - totalScheduledHours;
                 
                 let lessonDuration = Math.min(
@@ -929,17 +917,8 @@ const SchoolScheduleManager = () => {
                     stillNeeded
                 );
                 
-                if (currentHour < 13 && remainingBeforeLunch > 0) {
-                    lessonDuration = Math.min(lessonDuration, remainingBeforeLunch);
-                }
-                
                 if (lessonDuration <= 0) {
-                    if (currentHour < 13) {
-                        currentHour = 14;
-                    } else {
-                        break;
-                    }
-                    continue;
+                    break;
                 }
                 
                 let selectedTeacher = null;
@@ -987,7 +966,6 @@ const SchoolScheduleManager = () => {
                 
                 if (!selectedTeacher) {
                     currentHour++;
-                    if (currentHour === 13) currentHour = 14;
                     continue;
                 }
                 
@@ -1026,7 +1004,6 @@ const SchoolScheduleManager = () => {
                 }
                 
                 currentHour += lessonDuration;
-                if (currentHour === 13) currentHour = 14;
             }
 
             currentDate.setDate(currentDate.getDate() + 1);
@@ -1484,13 +1461,13 @@ const SchoolScheduleManager = () => {
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-3xl font-bold mb-2">N.S.E. - Next School Engine</h1>
-                            <p className="text-blue-100">🚀 v3.2.1 - Duplicazione Corsi</p>
-                            <p className="text-blue-100">💾 Gestione Materie + Duplica Corsi</p>
+                            <p className="text-blue-100">🚀 v3.2.3 - Materie Ordinate Alfabeticamente</p>
+                            <p className="text-blue-100">💾 Materie visualizzate in ordine alfabetico</p>
                         </div>
                         <div className="text-right">
                             <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
                                 <div className="text-xs text-blue-100">Versione</div>
-                                <div className="text-2xl font-bold">3.2.1</div>
+                                <div className="text-2xl font-bold">3.2.3</div>
                             </div>
                         </div>
                     </div>
@@ -1600,8 +1577,8 @@ const SchoolScheduleManager = () => {
                                             <tbody>
                                                 {Array.from({length: 10}, (_, i) => i + 9).map(hour => (
                                                     <tr key={hour}>
-                                                        <td className={`border p-2 text-center font-semibold sticky left-0 ${hour === 13 ? 'bg-yellow-100' : 'bg-gray-50'}`}>
-                                                            {hour}:00 {hour === 13 ? '🍽️' : ''}
+                                                        <td className="border p-2 text-center font-semibold sticky left-0 bg-gray-50">
+                                                            {hour}:00
                                                         </td>
                                                         {getWeekDates().map((date, idx) => {
                                                             const dateStr = formatDate(date);
@@ -1619,7 +1596,7 @@ const SchoolScheduleManager = () => {
                                                             });
                                                             
                                                             return (
-                                                                <td key={idx} className={`border-2 p-0 align-top ${hour === 13 ? 'bg-yellow-50' : 'bg-white'}`} style={{minHeight: '62px', height: '62px', position: 'relative'}}>
+                                                                <td key={idx} className="border-2 p-0 align-top bg-white" style={{minHeight: '62px', height: '62px', position: 'relative'}}>
                                                                     {lessonsStarting.length > 0 && (
                                                                         <div className="p-1" style={{position: 'relative', height: '100%'}}>
                                                                             {lessonsStarting.map((lesson, lessonIndex) => {
@@ -1892,7 +1869,7 @@ const SchoolScheduleManager = () => {
                             <ul className="text-sm text-green-800 space-y-1 ml-4">
                                 <li>• Ottimizza tutti i corsi insieme alternando docenti e aule</li>
                                 <li>• Massimizza l'utilizzo docenti: target 8h al giorno per docente</li>
-                                <li>• Nessuna pausa tra docenti (tranne pranzo 13:00-14:00)</li>
+                                <li>• Orario continuo dalle 9:00 alle 18:00</li>
                                 <li>• Rispetta sempre il 100% delle ore per ogni corso</li>
                                 <li>• ✅ BUGFIX: Previene doppia calendarizzazione corso nella stessa ora</li>
                             </ul>
@@ -2339,7 +2316,7 @@ const SchoolScheduleManager = () => {
                                     <p className="text-sm">Clicca su "Aggiungi" per iniziare</p>
                                 </div>
                             ) : (
-                                subjects.map(subject => {
+                                [...subjects].sort((a, b) => a.name.localeCompare(b.name)).map(subject => {
                                     const teachersCount = teachers.filter(t => t.subjectIds && t.subjectIds.includes(subject.id)).length;
                                     
                                     return (
