@@ -110,6 +110,7 @@ const SchoolScheduleManager = () => {
 
     const [viewMode, setViewMode] = useState('week');
     const [filteredCourseIds, setFilteredCourseIds] = useState([]);
+    const [courseColorMap, setCourseColorMap] = useState({});
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedLesson, setSelectedLesson] = useState(null);
     
@@ -166,7 +167,7 @@ const SchoolScheduleManager = () => {
     // 🔥 NUOVO: Funzioni Export/Import
     const exportData = () => {
         const data = {
-            version: '3.3.5',
+            version: '3.3.7',
             exportDate: new Date().toISOString(),
             subjects,
             teachers,
@@ -242,6 +243,7 @@ const SchoolScheduleManager = () => {
                 setRooms(DEFAULT_ROOMS);
                 setLessons([]);
                 setCourses([]);
+                setCourseColorMap({});
                 localStorage.clear();
                 alert('✅ Tutti i dati sono stati cancellati!\n\nIl sistema è stato ripristinato con i dati di default.');
             }
@@ -254,7 +256,39 @@ const SchoolScheduleManager = () => {
 
     const getCourseColor = (courseId) => {
         if (!courseId) return COURSE_COLORS[0];
-        return COURSE_COLORS[courseId % COURSE_COLORS.length];
+        
+        // Se il corso ha già un colore assegnato, usalo
+        if (courseColorMap[courseId] !== undefined) {
+            return COURSE_COLORS[courseColorMap[courseId]];
+        }
+        
+        // Trova i colori già usati
+        const usedColorIndices = Object.values(courseColorMap);
+        
+        // Trova il primo colore disponibile (non usato)
+        let availableColorIndex = -1;
+        for (let i = 0; i < COURSE_COLORS.length; i++) {
+            if (!usedColorIndices.includes(i)) {
+                availableColorIndex = i;
+                break;
+            }
+        }
+        
+        // Se tutti i colori sono usati, usa quello meno usato
+        if (availableColorIndex === -1) {
+            const colorCounts = {};
+            usedColorIndices.forEach(idx => {
+                colorCounts[idx] = (colorCounts[idx] || 0) + 1;
+            });
+            availableColorIndex = parseInt(Object.keys(colorCounts).reduce((a, b) => 
+                colorCounts[a] < colorCounts[b] ? a : b
+            ));
+        }
+        
+        // Salva l'assegnazione
+        setCourseColorMap(prev => ({...prev, [courseId]: availableColorIndex}));
+        
+        return COURSE_COLORS[availableColorIndex];
     };
 
     const navigateWeek = (direction) => {
@@ -1352,6 +1386,12 @@ const SchoolScheduleManager = () => {
         if (window.confirm('Sei sicuro di voler eliminare questo corso? Tutte le lezioni associate verranno eliminate.')) {
             setCourses(courses.filter(c => c.id !== id));
             setLessons(lessons.filter(l => l.courseId !== id));
+            // Libera il colore assegnato
+            setCourseColorMap(prev => {
+                const newMap = {...prev};
+                delete newMap[id];
+                return newMap;
+            });
         }
     };
 
@@ -1710,13 +1750,13 @@ const SchoolScheduleManager = () => {
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-3xl font-bold mb-2">N.S.E. - Next School Engine</h1>
-                            <p className="text-blue-100">🚀 v3.3.5 - Filtro Corsi e Calendario Migliorato</p>
-                            <p className="text-blue-100">💾 Filtro corsi con checkbox, corso per primo in settimanale</p>
+                            <p className="text-blue-100">🚀 v3.3.7 - Pulsanti Modifica in Alto</p>
+                            <p className="text-blue-100">💾 Aggiorna/Annulla disponibili in alto e in fondo</p>
                         </div>
                         <div className="text-right">
                             <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
                                 <div className="text-xs text-blue-100">Versione</div>
-                                <div className="text-2xl font-bold">3.3.5</div>
+                                <div className="text-2xl font-bold">3.3.7</div>
                             </div>
                         </div>
                     </div>
@@ -2396,7 +2436,13 @@ const SchoolScheduleManager = () => {
                                         
                                         {editingCourse && editingCourse.id === course.id && (
                                             <div className="bg-blue-50 p-4 rounded-lg mt-4 border-2 border-blue-400">
-                                                <h3 className="font-bold mb-4 text-blue-800">✏️ Modifica Corso</h3>
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h3 className="font-bold text-blue-800">✏️ Modifica Corso</h3>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={updateCourse} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold">Aggiorna</button>
+                                                        <button onClick={() => { setEditingCourse(null); setShowEditCourse(false); }} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
+                                                    </div>
+                                                </div>
                                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                                     <div className="col-span-2"><label className="block text-sm font-medium mb-1">Nome Corso</label><input type="text" value={editingCourse.name} onChange={(e) => setEditingCourse({...editingCourse, name: e.target.value})} placeholder="Es: Operatore Informatico" className="w-full p-2 border rounded"/></div>
                                                     <div><label className="block text-sm font-medium mb-1">Totale ore corso</label><input type="number" min="1" value={editingCourse.totalHours} onChange={(e) => setEditingCourse({...editingCourse, totalHours: e.target.value})} placeholder="Es: 200" className="w-full p-2 border rounded"/></div>
