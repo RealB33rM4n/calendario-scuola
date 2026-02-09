@@ -135,11 +135,12 @@ const SchoolScheduleManager = () => {
         startDate: '', endDate: '', teachers: [],
         stageStartDate: '', stageEndDate: '', numberOfStudents: '', roomId: ''
     });
+    const [newCourseColorIndex, setNewCourseColorIndex] = useState(0);
     const [newLesson, setNewLesson] = useState({
         teacherId: '', roomId: '', date: new Date().toISOString().split('T')[0],
         startTime: '09:00', duration: 1, subject: '', numberOfStudents: '', courseId: ''
     });
-    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subjectIds: [], unavailability: [] });
+    const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subjectIds: [], unavailability: [], minDailyHours: 0 });
     const [newRoom, setNewRoom] = useState({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
     const [newSubject, setNewSubject] = useState({ name: '' });
 
@@ -167,13 +168,14 @@ const SchoolScheduleManager = () => {
     // 🔥 NUOVO: Funzioni Export/Import
     const exportData = () => {
         const data = {
-            version: '3.3.8',
+            version: '3.6.0',
             exportDate: new Date().toISOString(),
             subjects,
             teachers,
             rooms,
             lessons,
-            courses
+            courses,
+            courseColorMap  // ← Aggiungo mappa colori
         };
         
         const dataStr = JSON.stringify(data, null, 2);
@@ -225,6 +227,18 @@ const SchoolScheduleManager = () => {
                     setLessons(data.lessons);
                     setCourses(data.courses);
                     
+                    // Ripristina mappa colori se presente, altrimenti usa default
+                    if (data.courseColorMap) {
+                        setCourseColorMap(data.courseColorMap);
+                    } else {
+                        // Retrocompatibilità: assegna colori automaticamente ai corsi importati
+                        const newColorMap = {};
+                        data.courses.forEach((course, index) => {
+                            newColorMap[course.id] = index % COURSE_COLORS.length;
+                        });
+                        setCourseColorMap(newColorMap);
+                    }
+                    
                     alert(`✅ Dati importati con successo!\n\n📊 Statistiche:\n• ${data.courses.length} corsi\n• ${data.teachers.length} docenti\n• ${importedSubjects.length} materie\n• ${data.rooms.length} aule\n• ${data.lessons.length} lezioni\n\nData export: ${new Date(data.exportDate).toLocaleString('it-IT')}`);
                 }
             } catch (error) {
@@ -257,38 +271,13 @@ const SchoolScheduleManager = () => {
     const getCourseColor = (courseId) => {
         if (!courseId) return COURSE_COLORS[0];
         
-        // Se il corso ha già un colore assegnato, usalo
+        // Se il corso ha un colore assegnato, usalo
         if (courseColorMap[courseId] !== undefined) {
             return COURSE_COLORS[courseColorMap[courseId]];
         }
         
-        // Trova i colori già usati
-        const usedColorIndices = Object.values(courseColorMap);
-        
-        // Trova il primo colore disponibile (non usato)
-        let availableColorIndex = -1;
-        for (let i = 0; i < COURSE_COLORS.length; i++) {
-            if (!usedColorIndices.includes(i)) {
-                availableColorIndex = i;
-                break;
-            }
-        }
-        
-        // Se tutti i colori sono usati, usa quello meno usato
-        if (availableColorIndex === -1) {
-            const colorCounts = {};
-            usedColorIndices.forEach(idx => {
-                colorCounts[idx] = (colorCounts[idx] || 0) + 1;
-            });
-            availableColorIndex = parseInt(Object.keys(colorCounts).reduce((a, b) => 
-                colorCounts[a] < colorCounts[b] ? a : b
-            ));
-        }
-        
-        // Salva l'assegnazione
-        setCourseColorMap(prev => ({...prev, [courseId]: availableColorIndex}));
-        
-        return COURSE_COLORS[availableColorIndex];
+        // Default: primo colore (Rosso) per corsi senza colore assegnato
+        return COURSE_COLORS[0];
     };
 
     const navigateWeek = (direction) => {
@@ -526,51 +515,49 @@ const SchoolScheduleManager = () => {
             return;
         }
 
-        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\nIl sistema ottimizzerà giornate, docenti e aule per massimizzare l'efficienza.`)) {
+        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\n🔥 SISTEMA MULTI-ITERAZIONE v3.5.1:\n• Rispetta SEMPRE maxDailyHours\n• Frammentazione intelligente lezioni\n• Estensione periodo se necessario\n• Controlli rigorosi anti-conflitto\n• Garantisce massimo completamento possibile`)) {
             return;
         }
 
         const newLessons = [];
-        const errors = [];
-        const courseIssues = {};
         
+        // Helper: verifica se due lezioni si sovrappongono
+        const lessonOverlaps = (lesson, hour, duration) => {
+            const lessonStart = parseInt(lesson.startTime.split(':')[0]);
+            const lessonEnd = lessonStart + lesson.duration;
+            const newEnd = hour + duration;
+            return !(newEnd <= lessonStart || hour >= lessonEnd);
+        };
+        
+        // Prepara dati corsi con tracking
         const coursesData = incompleteCourses.map(course => {
             const scheduled = getCourseScheduledHours(course.id);
-            const issues = [];
+            const courseSubjects = getSubjectsFromTeachers(course);
             
-            if (!course.startDate || !course.endDate) {
-                issues.push('❌ Date inizio/fine non configurate');
+            const teacherSubjectHours = {};
+            if (course.teachers) {
+                course.teachers.forEach(ct => {
+                    teacherSubjectHours[ct.teacherId] = {};
+                    (ct.subjects || []).forEach(s => {
+                        teacherSubjectHours[ct.teacherId][s.subjectId] = 0;
+                    });
+                });
             }
             
-            const startDate = new Date(course.startDate);
-            const endDate = new Date(course.endDate);
-            const today = new Date();
-            
-            if (endDate < today) {
-                issues.push(`❌ Data fine corso scaduta (${endDate.toLocaleDateString('it-IT')})`);
-            }
-            
-            if (!rooms.find(r => r.capacity >= course.numberOfStudents)) {
-                issues.push(`❌ Nessuna aula disponibile con ${course.numberOfStudents} posti`);
-            }
-            
-            if (!course.teachers || course.teachers.length === 0) {
-                if (teachers.length === 0) {
-                    issues.push('❌ Nessun docente disponibile nel sistema');
+            lessons.filter(l => l.courseId === course.id).forEach(lesson => {
+                const lessonSubject = courseSubjects.find(s => s.name === lesson.subject);
+                if (lessonSubject && teacherSubjectHours[lesson.teacherId]?.[lessonSubject.id] !== undefined) {
+                    teacherSubjectHours[lesson.teacherId][lessonSubject.id] += lesson.duration;
                 }
-            }
-            
-            if (issues.length > 0) {
-                courseIssues[course.id] = issues;
-            }
+            });
             
             return {
                 ...course,
                 remainingHours: calculateAssignedHours(course) - scheduled,
+                courseSubjects,
                 currentSubjectIndex: 0,
                 currentSubjectHours: 0,
-                attemptedDays: 0,
-                successfulDays: 0
+                teacherSubjectHours
             };
         }).filter(c => c.remainingHours > 0);
 
@@ -585,111 +572,100 @@ const SchoolScheduleManager = () => {
             if (endDate > latestEndDate) latestEndDate = endDate;
         });
 
-        let currentDate = new Date();
         let totalScheduledHours = 0;
-        let daysProcessed = 0;
-        let daysWithLessons = 0;
-        const maxDays = 365;
+        let iteration = 0;
+        const MAX_ITERATIONS = 5;
+        let extendedDays = 0; // Giorni aggiuntivi oltre endDate
         
-        // Traccia ore totali per docente per materia per corso
-        const courseTeacherSubjectHours = {};
-        coursesData.forEach(course => {
-            courseTeacherSubjectHours[course.id] = {};
-            if (course.teachers && course.teachers.length > 0) {
-                course.teachers.forEach(ct => {
-                    if (!courseTeacherSubjectHours[course.id][ct.teacherId]) {
-                        courseTeacherSubjectHours[course.id][ct.teacherId] = {};
-                    }
-                    if (ct.subjects) {
-                        ct.subjects.forEach(s => {
-                            courseTeacherSubjectHours[course.id][ct.teacherId][s.subjectId] = 0;
-                        });
-                    }
+        // ========== SISTEMA MULTI-ITERAZIONE ==========
+        while (iteration < MAX_ITERATIONS && coursesData.some(c => c.remainingHours > 0)) {
+            iteration++;
+            
+            // ⚠️ IMPORTANTE: maxDailyHours NON viene MAI modificato - è un vincolo del corso!
+            // Strategie alternative per iterazioni successive
+            
+            if (iteration === 2) {
+                // PASS 2: Frammentazione lezioni (usa durate più corte per inserirsi meglio)
+                coursesData.forEach(c => {
+                    c.maxConsecutiveHours = Math.max(1, Math.floor(c.maxConsecutiveHours / 2));
                 });
-                
-                // Conta ore già schedulate
-                lessons.filter(l => l.courseId === course.id).forEach(lesson => {
-                    if (courseTeacherSubjectHours[course.id][lesson.teacherId]) {
-                        const courseSubjects = getSubjectsFromTeachers(course);
-                        const lessonSubject = courseSubjects.find(s => s.name === lesson.subject);
-                        if (lessonSubject && courseTeacherSubjectHours[course.id][lesson.teacherId][lessonSubject.id] !== undefined) {
-                            courseTeacherSubjectHours[course.id][lesson.teacherId][lessonSubject.id] += lesson.duration;
-                        }
-                    }
+            } else if (iteration === 3) {
+                // PASS 3: Estende periodo ricerca di 30 giorni oltre endDate
+                extendedDays = 30;
+            } else if (iteration === 4) {
+                // PASS 4: Estende ulteriormente (60 giorni totali)
+                extendedDays = 60;
+            } else if (iteration >= 5) {
+                // PASS 5: Ultima chance - estende periodo e minima durata lezioni
+                extendedDays = 90;
+                coursesData.forEach(c => {
+                    c.maxConsecutiveHours = 1; // Lezioni da 1h per massima flessibilità
                 });
             }
-        });
-
-        while (coursesData.some(c => c.remainingHours > 0) && currentDate <= latestEndDate && daysProcessed < maxDays) {
-            const dayOfWeek = currentDate.getDay();
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                continue;
-            }
-            daysProcessed++;
-
-            const dateStr = formatDate(currentDate);
-            const existingLessonsToday = [...lessons, ...newLessons].filter(l => l.date === dateStr);
             
-            const teacherDailyHours = {};
-            teachers.forEach(t => { teacherDailyHours[t.id] = 0; });
-            existingLessonsToday.forEach(l => {
-                if (teacherDailyHours[l.teacherId] !== undefined) {
-                    teacherDailyHours[l.teacherId] += l.duration;
-                }
-            });
-
-            const activeCourses = coursesData.filter(c => {
-                const start = new Date(c.startDate);
-                const end = new Date(c.endDate);
-                const current = new Date(dateStr);
-                if (current < start || current > end) return false;
-                if (c.stageStartDate && c.stageEndDate) {
-                    const stageStart = new Date(c.stageStartDate);
-                    const stageEnd = new Date(c.stageEndDate);
-                    if (current >= stageStart && current <= stageEnd) return false;
-                }
-                return c.remainingHours > 0;
-            });
-
-            if (activeCourses.length === 0) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                continue;
-            }
+            // Calcola endDate estesa per questa iterazione
+            const iterationEndDate = new Date(latestEndDate);
+            iterationEndDate.setDate(iterationEndDate.getDate() + extendedDays);
             
-            activeCourses.forEach(c => c.attemptedDays++);
-
-            let currentHour = 9;
-            let lessonsCreatedToday = 0;
-
-            while (currentHour < 18 && activeCourses.some(c => c.remainingHours > 0)) {
-                let canCreateMoreInThisSlot = true;
+            let currentDate = new Date();
+            let daysProcessed = 0;
+            const maxDays = 365 + extendedDays;
+            
+            // Loop principale per questa iterazione
+            while (coursesData.some(c => c.remainingHours > 0) && currentDate <= iterationEndDate && daysProcessed < maxDays) {
+                const dayOfWeek = currentDate.getDay();
                 
-                while (canCreateMoreInThisSlot && activeCourses.some(c => c.remainingHours > 0)) {
-                    canCreateMoreInThisSlot = false;
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    continue;
+                }
+                
+                daysProcessed++;
+                const dateStr = formatDate(currentDate);
+                const todayLessons = [...lessons, ...newLessons].filter(l => l.date === dateStr);
+                
+                const teacherDailyHours = {};
+                teachers.forEach(t => { teacherDailyHours[t.id] = 0; });
+                todayLessons.forEach(l => {
+                    teacherDailyHours[l.teacherId] = (teacherDailyHours[l.teacherId] || 0) + l.duration;
+                });
+                
+                const courseDailyHours = {};
+                coursesData.forEach(c => { courseDailyHours[c.id] = 0; });
+                todayLessons.forEach(l => {
+                    courseDailyHours[l.courseId] = (courseDailyHours[l.courseId] || 0) + l.duration;
+                });
+                
+                const activeCourses = coursesData.filter(c => {
+                    const start = new Date(c.startDate);
+                    const end = new Date(c.endDate);
+                    const current = new Date(dateStr);
                     
+                    if (current < start || current > end) return false;
+                    
+                    if (c.stageStartDate && c.stageEndDate) {
+                        const stageStart = new Date(c.stageStartDate);
+                        const stageEnd = new Date(c.stageEndDate);
+                        if (current >= stageStart && current <= stageEnd) return false;
+                    }
+                    
+                    return c.remainingHours > 0;
+                });
+                
+                if (activeCourses.length === 0) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    continue;
+                }
+                
+                for (let hour = 9; hour < 18; hour++) {
                     for (let course of activeCourses) {
                         if (course.remainingHours <= 0) continue;
-
-                        const courseHoursToday = existingLessonsToday
-                            .filter(l => l.courseId === course.id)
-                            .reduce((sum, l) => sum + l.duration, 0);
                         
+                        const courseHoursToday = courseDailyHours[course.id] || 0;
                         if (courseHoursToday >= course.maxDailyHours) continue;
-
-                        const courseAlreadyInThisSlot = existingLessonsToday.some(l => {
-                            if (l.courseId !== course.id) return false;
-                            const lessonStart = parseInt(l.startTime.split(':')[0]);
-                            const lessonEnd = lessonStart + l.duration;
-                            return currentHour >= lessonStart && currentHour < lessonEnd;
-                        });
                         
-                        if (courseAlreadyInThisSlot) continue;
-
-                        const courseSubjects = getSubjectsFromTeachers(course);
-                        if (courseSubjects.length === 0 || course.currentSubjectIndex >= courseSubjects.length) continue;
-                        
-                        const currentSubject = courseSubjects[course.currentSubjectIndex];
+                        if (course.currentSubjectIndex >= course.courseSubjects.length) continue;
+                        const currentSubject = course.courseSubjects[course.currentSubjectIndex];
                         const remainingSubjectHours = currentSubject.hours - course.currentSubjectHours;
                         
                         if (remainingSubjectHours <= 0) {
@@ -697,247 +673,219 @@ const SchoolScheduleManager = () => {
                             course.currentSubjectHours = 0;
                             continue;
                         }
-
-                        let availableRooms = [];
-
-                        if (course.roomId) {
-                            const assignedRoom = rooms.find(r => r.id === course.roomId);
-                            if (assignedRoom && assignedRoom.capacity >= course.numberOfStudents) {
-                                const roomBusy = existingLessonsToday.some(l => {
-                                    if (l.roomId !== assignedRoom.id) return false;
-                                    const lessonStart = parseInt(l.startTime.split(':')[0]);
-                                    const lessonEnd = lessonStart + l.duration;
-                                    return currentHour >= lessonStart && currentHour < lessonEnd;
-                                });
-                                if (!roomBusy) {
-                                    availableRooms.push(assignedRoom);
-                                }
-                            }
-                        } else {
-                            availableRooms = rooms.filter(r => {
-                                if (r.capacity < course.numberOfStudents) return false;
-                                
-                                const roomBusy = existingLessonsToday.some(l => {
-                                    if (l.roomId !== r.id) return false;
-                                    const lessonStart = parseInt(l.startTime.split(':')[0]);
-                                    const lessonEnd = lessonStart + l.duration;
-                                    return currentHour >= lessonStart && currentHour < lessonEnd;
-                                });
-                                return !roomBusy;
-                            });
-                        }
                         
-                        if (availableRooms.length === 0) continue;
-                        const room = availableRooms[0];
-
-                        let teachersList = [];
-                        if (course.teachers && course.teachers.length > 0) {
-                            teachersList = course.teachers
-                                .map(ct => ({
-                                    ...ct,
-                                    teacher: teachers.find(t => t.id === ct.teacherId),
-                                    hoursToday: teacherDailyHours[ct.teacherId] || 0
-                                }))
-                                .filter(ct => ct.teacher)
-                                .sort((a, b) => a.hoursToday - b.hoursToday);
-                        } else {
-                            teachersList = teachers
-                                .map(t => ({
-                                    teacherId: t.id,
-                                    teacher: t,
-                                    hoursToday: teacherDailyHours[t.id] || 0,
-                                    hours: 999999
-                                }))
-                                .sort((a, b) => a.hoursToday - b.hoursToday);
-                        }
-
-                        if (teachersList.length === 0) {
-                            if (!courseIssues[course.id]) courseIssues[course.id] = [];
-                            if (!courseIssues[course.id].includes('❌ Nessun docente configurato')) {
-                                courseIssues[course.id].push('❌ Nessun docente configurato');
-                            }
-                            continue;
-                        }
-
-                        const remainingInDay = 18 - currentHour;
-                        const remainingForCourseToday = course.maxDailyHours - courseHoursToday;
-                        
-                        let lessonDuration = Math.min(
+                        // Calcola durata massima lezione
+                        let maxLessonDuration = Math.min(
                             course.maxConsecutiveHours,
                             remainingSubjectHours,
                             course.remainingHours,
-                            remainingForCourseToday,
-                            remainingInDay
+                            course.maxDailyHours - courseHoursToday,
+                            18 - hour
                         );
-
-                        if (lessonDuration < 1) continue;
-
-                        let selectedTeacher = null;
-                        for (let ct of teachersList) {
-                            // Verifica se questo docente ha ore assegnate per la materia corrente
-                            const courseTeacher = course.teachers?.find(t => t.teacherId === ct.teacherId);
-                            if (courseTeacher) {
-                                const teacherSubject = (courseTeacher.subjects || []).find(s => s.subjectId === currentSubject.id);
-                                if (!teacherSubject || teacherSubject.hours <= 0) continue;
-                                
-                                // Verifica quante ore ha già fatto per questa materia
-                                const hoursAlreadyDone = courseTeacherSubjectHours[course.id]?.[ct.teacherId]?.[currentSubject.id] || 0;
-                                if (hoursAlreadyDone >= teacherSubject.hours) continue;
-                                
-                                // Limita la durata alle ore rimanenti per questo docente per questa materia
-                                const remainingForTeacher = teacherSubject.hours - hoursAlreadyDone;
-                                lessonDuration = Math.min(lessonDuration, remainingForTeacher);
-                            }
+                        
+                        if (maxLessonDuration < 1) continue;
+                        
+                        // TROVA AULA DISPONIBILE
+                        let availableRooms = rooms.filter(r => {
+                            if (r.capacity < course.numberOfStudents) return false;
+                            if (course.roomId && r.id !== course.roomId) return false;
                             
-                            const teacherHoursScheduled = existingLessonsToday
-                                .filter(l => l.teacherId === ct.teacherId)
-                                .reduce((sum, l) => sum + l.duration, 0);
-                            
-                            if (teacherHoursScheduled >= 8) continue;
-
-                            const startTimeStr = `${currentHour.toString().padStart(2, '0')}:00`;
-                            if (!isTeacherAvailable(ct.teacherId, dateStr, startTimeStr)) continue;
-
-                            const slot = findNextAvailableSlot(dateStr, currentHour, lessonDuration, room.id, ct.teacherId, existingLessonsToday);
-                            if (slot && slot.hour === currentHour) {
-                                selectedTeacher = ct.teacher;
-                                lessonDuration = slot.duration;
-                                break;
-                            }
-                        }
-
-                        if (!selectedTeacher) {
-                            // Verifica se tutti i docenti per questa materia hanno finito le loro ore
-                            const allTeachersCompletedForSubject = course.teachers && course.teachers.every(ct => {
-                                const teacherSubject = (ct.subjects || []).find(s => s.subjectId === currentSubject.id);
-                                if (!teacherSubject || teacherSubject.hours <= 0) return true;
-                                const hoursAlreadyDone = courseTeacherSubjectHours[course.id]?.[ct.teacherId]?.[currentSubject.id] || 0;
-                                return hoursAlreadyDone >= teacherSubject.hours;
+                            const roomBusy = todayLessons.some(l => {
+                                if (l.roomId !== r.id) return false;
+                                return lessonOverlaps(l, hour, maxLessonDuration);
                             });
                             
-                            if (allTeachersCompletedForSubject) {
+                            return !roomBusy;
+                        });
+                        
+                        if (availableRooms.length === 0) continue;
+                        const room = availableRooms[0];
+                        
+                        // ========== CONTROLLO CRITICO: CORSO NON IN ALTRA AULA ==========
+                        const courseInOtherRoom = todayLessons.some(l => 
+                            l.courseId === course.id && 
+                            l.roomId !== room.id &&
+                            lessonOverlaps(l, hour, maxLessonDuration)
+                        );
+                        
+                        if (courseInOtherRoom) {
+                            continue; // BLOCCA: corso già attivo altrove
+                        }
+                        
+                        // TROVA DOCENTE DISPONIBILE
+                        let selectedTeacher = null;
+                        let finalLessonDuration = maxLessonDuration;
+                        
+                        const teacherCandidates = (course.teachers || [])
+                            .map(ct => {
+                                const teacher = teachers.find(t => t.id === ct.teacherId);
+                                const hoursToday = teacherDailyHours[ct.teacherId] || 0;
+                                const minDaily = teacher?.minDailyHours || 0;
+                                const isBelowMin = minDaily > 0 && hoursToday < minDaily;
+                                
+                                // Conta in quanti corsi diversi ha già lavorato oggi
+                                const coursesWorkedToday = new Set(
+                                    todayLessons
+                                        .filter(l => l.teacherId === ct.teacherId)
+                                        .map(l => l.courseId)
+                                ).size;
+                                
+                                return {
+                                    ...ct,
+                                    teacher,
+                                    hoursToday,
+                                    minDaily,
+                                    isBelowMin,
+                                    coursesWorkedToday
+                                };
+                            })
+                            .filter(ct => ct.teacher)
+                            .sort((a, b) => {
+                                // PRIORITÀ 1: Docenti sotto il loro minimo giornaliero
+                                if (a.isBelowMin !== b.isBelowMin) {
+                                    return a.isBelowMin ? -1 : 1;
+                                }
+                                
+                                // PRIORITÀ 2: Alternanza corsi (preferisci chi ha lavorato in meno corsi oggi)
+                                if (a.coursesWorkedToday !== b.coursesWorkedToday) {
+                                    return a.coursesWorkedToday - b.coursesWorkedToday;
+                                }
+                                
+                                // PRIORITÀ 3: Meno ore fatte oggi
+                                return a.hoursToday - b.hoursToday;
+                            });
+                        
+                        for (let ct of teacherCandidates) {
+                            const teacherSubject = (ct.subjects || []).find(s => s.subjectId === currentSubject.id);
+                            if (!teacherSubject || teacherSubject.hours <= 0) continue;
+                            
+                            const hoursAlreadyDone = course.teacherSubjectHours[ct.teacherId]?.[currentSubject.id] || 0;
+                            if (hoursAlreadyDone >= teacherSubject.hours) continue;
+                            
+                            const teacherRemainingForSubject = teacherSubject.hours - hoursAlreadyDone;
+                            let lessonDuration = Math.min(maxLessonDuration, teacherRemainingForSubject);
+                            
+                            const teacherHoursToday = teacherDailyHours[ct.teacherId] || 0;
+                            if (teacherHoursToday >= 8) continue;
+                            
+                            const startTimeStr = `${hour.toString().padStart(2, '0')}:00`;
+                            if (!isTeacherAvailable(ct.teacherId, dateStr, startTimeStr)) continue;
+                            
+                            const teacherBusy = todayLessons.some(l => {
+                                if (l.teacherId !== ct.teacherId) return false;
+                                return lessonOverlaps(l, hour, lessonDuration);
+                            });
+                            
+                            if (teacherBusy) continue;
+                            
+                            // ========== CONTROLLO CRITICO: DOCENTE NON IN ALTRO CORSO ==========
+                            const teacherInOtherCourse = todayLessons.some(l =>
+                                l.teacherId === ct.teacherId &&
+                                l.courseId !== course.id &&
+                                lessonOverlaps(l, hour, lessonDuration)
+                            );
+                            
+                            if (teacherInOtherCourse) {
+                                continue; // BLOCCA: docente già impegnato in altro corso
+                            }
+                            
+                            selectedTeacher = ct.teacher;
+                            finalLessonDuration = lessonDuration;
+                            break;
+                        }
+                        
+                        if (!selectedTeacher) {
+                            const allTeachersCompleted = (course.teachers || []).every(ct => {
+                                const ts = (ct.subjects || []).find(s => s.subjectId === currentSubject.id);
+                                if (!ts || ts.hours <= 0) return true;
+                                const done = course.teacherSubjectHours[ct.teacherId]?.[currentSubject.id] || 0;
+                                return done >= ts.hours;
+                            });
+                            
+                            if (allTeachersCompleted) {
                                 course.currentSubjectIndex++;
                                 course.currentSubjectHours = 0;
                             }
                             
                             continue;
                         }
-
-                        const tempLesson = {
+                        
+                        // CREA LEZIONE - doppio controllo finale
+                        const finalCheck = todayLessons.some(l => 
+                            (l.courseId === course.id && l.roomId !== room.id && lessonOverlaps(l, hour, finalLessonDuration)) ||
+                            (l.teacherId === selectedTeacher.id && l.courseId !== course.id && lessonOverlaps(l, hour, finalLessonDuration))
+                        );
+                        
+                        if (finalCheck) continue;
+                        
+                        const newLesson = {
+                            id: Date.now() + newLessons.length + Math.random(),
                             teacherId: selectedTeacher.id,
                             roomId: room.id,
                             date: dateStr,
                             dayOfWeek: italianDays[currentDate.getDay()],
-                            startTime: `${currentHour.toString().padStart(2, '0')}:00`,
-                            duration: lessonDuration,
+                            startTime: `${hour.toString().padStart(2, '0')}:00`,
+                            duration: finalLessonDuration,
                             subject: currentSubject.name,
                             courseId: course.id,
                             numberOfStudents: course.numberOfStudents
                         };
-
-                        const conflict = checkConflict(tempLesson, existingLessonsToday);
-                        if (!conflict) {
-                            newLessons.push({
-                                id: Date.now() + newLessons.length + Math.random(),
-                                ...tempLesson
-                            });
-                            
-                            existingLessonsToday.push(tempLesson);
-                            course.remainingHours -= lessonDuration;
-                            course.currentSubjectHours += lessonDuration;
-                            teacherDailyHours[selectedTeacher.id] += lessonDuration;
-                            totalScheduledHours += lessonDuration;
-                            lessonsCreatedToday++;
-                            
-                            // Aggiorna il tracker totale per docente per materia
-                            if (courseTeacherSubjectHours[course.id]?.[selectedTeacher.id]?.[currentSubject.id] !== undefined) {
-                                courseTeacherSubjectHours[course.id][selectedTeacher.id][currentSubject.id] += lessonDuration;
-                            }
-
-                            if (course.currentSubjectHours >= currentSubject.hours) {
-                                course.currentSubjectIndex++;
-                                course.currentSubjectHours = 0;
-                            }
-
-                            canCreateMoreInThisSlot = true;
+                        
+                        newLessons.push(newLesson);
+                        todayLessons.push(newLesson);
+                        
+                        course.remainingHours -= finalLessonDuration;
+                        course.currentSubjectHours += finalLessonDuration;
+                        course.teacherSubjectHours[selectedTeacher.id][currentSubject.id] += finalLessonDuration;
+                        teacherDailyHours[selectedTeacher.id] = (teacherDailyHours[selectedTeacher.id] || 0) + finalLessonDuration;
+                        courseDailyHours[course.id] = (courseDailyHours[course.id] || 0) + finalLessonDuration;
+                        totalScheduledHours += finalLessonDuration;
+                        
+                        if (course.currentSubjectHours >= currentSubject.hours) {
+                            course.currentSubjectIndex++;
+                            course.currentSubjectHours = 0;
                         }
                     }
                 }
-
-                currentHour++;
+                
+                currentDate.setDate(currentDate.getDate() + 1);
             }
             
-            if (lessonsCreatedToday > 0) {
-                daysWithLessons++;
-                activeCourses.forEach(c => {
-                    const created = existingLessonsToday.filter(l => l.courseId === c.id).length;
-                    if (created > 0) c.successfulDays++;
-                });
-            }
-
-            currentDate.setDate(currentDate.getDate() + 1);
+            // Verifica progresso iterazione
+            const remainingTotal = coursesData.reduce((sum, c) => sum + c.remainingHours, 0);
+            if (remainingTotal === 0) break; // Tutti completati!
         }
 
+        // REPORT FINALE
         if (newLessons.length > 0) {
             setLessons([...lessons, ...newLessons]);
             
             const completedCourses = coursesData.filter(c => c.remainingHours <= 0);
             const partialCourses = coursesData.filter(c => c.remainingHours > 0);
             
-            let message = `✅ Calendarizzazione globale completata!\n\n` +
-                  `📚 Lezioni create: ${newLessons.length}\n` +
-                  `⏱️ Ore totali programmate: ${totalScheduledHours}h\n` +
-                  `✅ Corsi completati: ${completedCourses.length}\n` +
-                  `📊 Corsi parziali: ${partialCourses.length}\n` +
-                  `📅 Giorni utilizzati: ${daysWithLessons}/${daysProcessed}`;
+            let message = `✅ Calendarizzazione completata in ${iteration} iterazioni!\\n\\n` +
+                  `📚 Lezioni create: ${newLessons.length}\\n` +
+                  `⏱️ Ore totali programmate: ${totalScheduledHours}h\\n` +
+                  `✅ Corsi completati: ${completedCourses.length}/${coursesData.length}`;
             
-            if (partialCourses.length > 0) {
-                message += '\n\n⚠️ CORSI NON COMPLETATI:';
+            if (completedCourses.length === coursesData.length) {
+                message += '\\n\\n🎉 SUCCESSO: Tutti i corsi al 100%!';
+            } else {
+                message += `\\n\\n⚠️ Corsi parziali: ${partialCourses.length}`;
                 partialCourses.forEach(c => {
-                    message += `\n\n📚 ${c.name}:`;
-                    message += `\n  • Ore mancanti: ${c.remainingHours}h`;
-                    message += `\n  • Giorni tentati: ${c.attemptedDays}`;
-                    message += `\n  • Giorni con lezioni: ${c.successfulDays}`;
-                    if (courseIssues[c.id] && courseIssues[c.id].length > 0) {
-                        message += '\n  • Problemi rilevati:';
-                        courseIssues[c.id].forEach(issue => {
-                            message += `\n    ${issue}`;
-                        });
-                    }
+                    const percentage = Math.round((1 - c.remainingHours / calculateAssignedHours(c)) * 100);
+                    message += `\\n\\n📚 ${c.name}:`;
+                    message += `\\n  • Completato: ${percentage}%`;
+                    message += `\\n  • Ore mancanti: ${c.remainingHours}h`;
                 });
+                message += '\\n\\n💡 Suggerimenti:\\n• Estendi periodo corso\\n• Riduci ore assegnate\\n• Aggiungi più docenti\\n• Verifica indisponibilità';
             }
             
             alert(message);
         } else {
-            let errorMessage = '❌ Impossibile calendarizzare i corsi.\n\n🔍 PROBLEMI RILEVATI:\n';
-            
-            if (Object.keys(courseIssues).length > 0) {
-                Object.keys(courseIssues).forEach(courseId => {
-                    const course = courses.find(c => c.id === parseInt(courseId));
-                    if (course) {
-                        errorMessage += `\n📚 ${course.name}:\n`;
-                        courseIssues[courseId].forEach(issue => {
-                            errorMessage += `  ${issue}\n`;
-                        });
-                    }
-                });
-            } else {
-                errorMessage += '\n• Conflitti di orario persistenti\n';
-                errorMessage += '• Tutti i docenti occupati\n';
-                errorMessage += '• Limiti giornalieri troppo restrittivi\n';
-            }
-            
-            errorMessage += '\n💡 SUGGERIMENTI:\n';
-            errorMessage += '• Verifica che le date dei corsi siano valide\n';
-            errorMessage += '• Controlla la capienza delle aule\n';
-            errorMessage += '• Assegna docenti ai corsi\n';
-            errorMessage += '• Aumenta i limiti di ore giornaliere\n';
-            errorMessage += '• Estendi il periodo del corso';
-            
-            alert(errorMessage);
+            alert('❌ Nessuna lezione creata. Verifica:\\n\\n• Date dei corsi\\n• Docenti assegnati\\n• Aule disponibili\\n• Indisponibilità docenti');
         }
     };
-
     const clearCourseCalendar = (courseId) => {
         const course = courses.find(c => c.id === courseId);
         const courseLessons = lessons.filter(l => l.courseId === courseId);
@@ -1347,11 +1295,24 @@ const SchoolScheduleManager = () => {
                 }))
             };
             setCourses([...courses, course]);
+            // Assegna colore scelto al nuovo corso
+            setCourseColorMap(prev => ({...prev, [course.id]: newCourseColorIndex}));
+            // Reset form e colore
             setNewCourse({
                 name: '', totalHours: 0, maxDailyHours: 4, maxConsecutiveHours: 4,
                 startDate: '', endDate: '', teachers: [],
                 stageStartDate: '', stageEndDate: '', numberOfStudents: '', roomId: ''
             });
+            // Trova prossimo colore disponibile per il form
+            const usedColors = Object.values({...courseColorMap, [course.id]: newCourseColorIndex});
+            let nextColor = 0;
+            for (let i = 0; i < COURSE_COLORS.length; i++) {
+                if (!usedColors.includes(i)) {
+                    nextColor = i;
+                    break;
+                }
+            }
+            setNewCourseColorIndex(nextColor);
             setShowAddCourse(false);
         }
     };
@@ -1396,19 +1357,45 @@ const SchoolScheduleManager = () => {
     };
 
     const duplicateCourse = (course) => {
+        // Deep copy completo per evitare riferimenti condivisi
         const duplicated = {
             ...course,
             id: Date.now(),
-            name: `${course.name} - COPIA`
+            name: `${course.name} - COPIA`,
+            // Deep copy dell'array teachers con tutti i loro oggetti interni
+            teachers: (course.teachers || []).map(teacher => ({
+                teacherId: teacher.teacherId,
+                // Deep copy dell'array subjects
+                subjects: (teacher.subjects || []).map(subject => ({
+                    subjectId: subject.subjectId,
+                    hours: subject.hours
+                }))
+            }))
         };
         setCourses([...courses, duplicated]);
+        // Assegna un nuovo colore al corso duplicato
+        const usedColors = Object.values(courseColorMap);
+        let availableColor = 0;
+        for (let i = 0; i < COURSE_COLORS.length; i++) {
+            if (!usedColors.includes(i)) {
+                availableColor = i;
+                break;
+            }
+        }
+        setCourseColorMap(prev => ({...prev, [duplicated.id]: availableColor}));
         alert(`✅ Corso duplicato con successo!\n\n📚 Nuovo corso: "${duplicated.name}"\n\n⚠️ Nota: Solo la struttura del corso è stata duplicata. Le lezioni non sono state copiate.`);
     };
 
     const addTeacher = () => {
         if (newTeacher.name && newTeacher.email) {
-            setTeachers([...teachers, { ...newTeacher, id: Date.now(), subjectIds: newTeacher.subjectIds || [], unavailability: [] }]);
-            setNewTeacher({ name: '', email: '', subjectIds: [], unavailability: [] });
+            setTeachers([...teachers, { 
+                ...newTeacher, 
+                id: Date.now(), 
+                subjectIds: newTeacher.subjectIds || [], 
+                unavailability: [],
+                minDailyHours: parseInt(newTeacher.minDailyHours) || 0
+            }]);
+            setNewTeacher({ name: '', email: '', subjectIds: [], unavailability: [], minDailyHours: 0 });
             setShowAddTeacher(false);
         }
     };
@@ -1750,13 +1737,13 @@ const SchoolScheduleManager = () => {
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-3xl font-bold mb-2">N.S.E. - Next School Engine</h1>
-                            <p className="text-blue-100">🚀 v3.3.8 - Materie Alfabetiche Insegnanti</p>
-                            <p className="text-blue-100">💾 Checkbox materie in ordine alfabetico A-Z</p>
+                            <p className="text-blue-100">🚀 v3.6.0 - Ore Minime Docenti + Alternanza Corsi</p>
+                            <p className="text-blue-100">💾 minDailyHours per docente + priorità alternanza</p>
                         </div>
                         <div className="text-right">
                             <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
                                 <div className="text-xs text-blue-100">Versione</div>
-                                <div className="text-2xl font-bold">3.3.8</div>
+                                <div className="text-2xl font-bold">3.6.0</div>
                             </div>
                         </div>
                     </div>
@@ -2211,7 +2198,19 @@ const SchoolScheduleManager = () => {
                                     <CalendarIcon />Auto-Calendarizza TUTTI
                                 </button>
                                 <button 
-                                    onClick={() => setShowAddCourse(true)} 
+                                    onClick={() => {
+                                        // Trova primo colore disponibile
+                                        const usedColors = Object.values(courseColorMap);
+                                        let availableColor = 0;
+                                        for (let i = 0; i < COURSE_COLORS.length; i++) {
+                                            if (!usedColors.includes(i)) {
+                                                availableColor = i;
+                                                break;
+                                            }
+                                        }
+                                        setNewCourseColorIndex(availableColor);
+                                        setShowAddCourse(true);
+                                    }} 
                                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                                 >
                                     <PlusIcon />Aggiungi Corso
@@ -2248,6 +2247,26 @@ const SchoolScheduleManager = () => {
                                     <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={newCourse.numberOfStudents} onChange={(e) => setNewCourse({...newCourse, numberOfStudents: e.target.value})} placeholder="Es: 25" className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={newCourse.maxDailyHours} onChange={(e) => setNewCourse({...newCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={newCourse.maxConsecutiveHours} onChange={(e) => setNewCourse({...newCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-2">🎨 Colore Corso</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {COURSE_COLORS.map((color, index) => {
+                                                const isSelected = newCourseColorIndex === index;
+                                                return (
+                                                    <button
+                                                        key={index}
+                                                        type="button"
+                                                        onClick={() => setNewCourseColorIndex(index)}
+                                                        className={`w-12 h-12 rounded-lg ${color.bg} ${color.border} border-4 transition-all ${isSelected ? 'ring-4 ring-yellow-400 scale-110' : 'hover:scale-105'}`}
+                                                        title={`Colore ${index + 1}`}
+                                                    >
+                                                        {isSelected && <span className={`text-2xl ${color.text}`}>✓</span>}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">💡 Clicca su un colore per assegnarlo al nuovo corso</p>
+                                    </div>
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium mb-1">Aula Assegnata (opzionale)</label>
                                         <select value={newCourse.roomId} onChange={(e) => setNewCourse({...newCourse, roomId: e.target.value})} className="w-full p-2 border rounded">
@@ -2455,6 +2474,26 @@ const SchoolScheduleManager = () => {
                                                     <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={editingCourse.maxDailyHours} onChange={(e) => setEditingCourse({...editingCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                                     <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={editingCourse.maxConsecutiveHours} onChange={(e) => setEditingCourse({...editingCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                                     <div className="col-span-2">
+                                                        <label className="block text-sm font-medium mb-2">🎨 Colore Corso</label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {COURSE_COLORS.map((color, index) => {
+                                                                const isSelected = courseColorMap[editingCourse.id] === index;
+                                                                return (
+                                                                    <button
+                                                                        key={index}
+                                                                        type="button"
+                                                                        onClick={() => setCourseColorMap(prev => ({...prev, [editingCourse.id]: index}))}
+                                                                        className={`w-12 h-12 rounded-lg ${color.bg} ${color.border} border-4 transition-all ${isSelected ? 'ring-4 ring-yellow-400 scale-110' : 'hover:scale-105'}`}
+                                                                        title={`Colore ${index + 1}`}
+                                                                    >
+                                                                        {isSelected && <span className={`text-2xl ${color.text}`}>✓</span>}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 mt-2">💡 Clicca su un colore per assegnarlo a questo corso</p>
+                                                    </div>
+                                                    <div className="col-span-2">
                                                         <label className="block text-sm font-medium mb-1">Aula Assegnata (opzionale)</label>
                                                         <select value={editingCourse.roomId || ''} onChange={(e) => setEditingCourse({...editingCourse, roomId: e.target.value})} className="w-full p-2 border rounded">
                                                             <option value="">Nessuna aula fissa (usa qualsiasi aula disponibile)</option>
@@ -2611,6 +2650,20 @@ const SchoolScheduleManager = () => {
                                         )}
                                     </div>
                                     
+                                    <div className="p-3 bg-white border rounded">
+                                        <label className="block text-sm font-medium mb-2">⏰ Ore minime giornaliere (opzionale):</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            max="8" 
+                                            value={newTeacher.minDailyHours} 
+                                            onChange={(e) => setNewTeacher({...newTeacher, minDailyHours: e.target.value})} 
+                                            placeholder="0 = nessun minimo"
+                                            className="w-full p-2 border rounded"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">💡 Numero minimo di ore giornaliere da programmare per questo docente. Il sistema cercherà di alternare tra più corsi se possibile.</p>
+                                    </div>
+                                    
                                     <div className="flex gap-2">
                                         <button onClick={addTeacher} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
                                         <button onClick={() => setShowAddTeacher(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
@@ -2654,6 +2707,11 @@ const SchoolScheduleManager = () => {
                                                     {unavailCount} indisponibilità
                                                 </div>
                                             )}
+                                            {teacher.minDailyHours > 0 && (
+                                                <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                                                    ⏰ Min {teacher.minDailyHours}h/giorno
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex gap-2 pt-4 border-t">
                                             <button onClick={() => { setEditingTeacher({...teacher}); setShowEditTeacher(true); }} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"><EditIcon />Modifica</button>
@@ -2688,6 +2746,20 @@ const SchoolScheduleManager = () => {
                                                         </div>
                                                     )}
                                                 </div>
+                                            </div>
+                                            
+                                            <div className="p-3 bg-white border rounded mb-4">
+                                                <label className="block text-sm font-medium mb-2">⏰ Ore minime giornaliere (opzionale):</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="0" 
+                                                    max="8" 
+                                                    value={editingTeacher.minDailyHours || 0} 
+                                                    onChange={(e) => setEditingTeacher({...editingTeacher, minDailyHours: e.target.value})} 
+                                                    placeholder="0 = nessun minimo"
+                                                    className="w-full p-2 border rounded"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">💡 Numero minimo di ore giornaliere da programmare per questo docente. Il sistema cercherà di alternare tra più corsi se possibile.</p>
                                             </div>
                                             
                                             <UnavailabilityManager 
