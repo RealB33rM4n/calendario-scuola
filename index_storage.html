@@ -38,6 +38,25 @@ const TIME_SLOTS = [
     '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
 ];
 
+
+const SUBJECT_PRIORITIES = [
+    { value: 0, label: 'Nessuna priorità', level: 4, color: 'bg-gray-100 text-gray-700', icon: '' },
+    { value: 1, label: 'Sicurezza', level: 1, color: 'bg-red-100 text-red-800 border border-red-300', icon: '🛡️' },
+    { value: 2, label: 'Orientativa', level: 2, color: 'bg-orange-100 text-orange-800 border border-orange-300', icon: '🧭' },
+    { value: 3, label: 'Base', level: 3, color: 'bg-blue-100 text-blue-800 border border-blue-300', icon: '📘' }
+];
+
+const getSubjectPriority = (subject) => {
+    const p = parseInt(subject?.priority) || 0;
+    return SUBJECT_PRIORITIES.find(sp => sp.value === p) || SUBJECT_PRIORITIES[0];
+};
+
+const getSubjectSchedulingLevel = (subject) => {
+    const p = parseInt(subject?.priority) || 0;
+    if (p >= 1 && p <= 3) return p;
+    return 4;
+};
+
 const COURSE_COLORS = [
     { bg: 'bg-red-500', text: 'text-white', border: 'border-red-600', light: 'bg-red-50', badge: 'bg-red-100 text-red-800' },
     { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-600', light: 'bg-blue-50', badge: 'bg-blue-100 text-blue-800' },
@@ -82,7 +101,7 @@ const DEFAULT_ROOMS = [
 const SchoolScheduleManager = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     
-    // 🔥 NUOVO: Carica dati da localStorage all'avvio
+    // ðŸ”¥ NUOVO: Carica dati da localStorage all'avvio
     const [subjects, setSubjects] = useState(() => {
         const saved = localStorage.getItem('nse_subjects');
         return saved ? JSON.parse(saved) : DEFAULT_SUBJECTS;
@@ -142,9 +161,9 @@ const SchoolScheduleManager = () => {
     });
     const [newTeacher, setNewTeacher] = useState({ name: '', email: '', subjectIds: [], unavailability: [], minDailyHours: 0 });
     const [newRoom, setNewRoom] = useState({ name: '', capacity: 20, type: 'Didattica', hasProjector: false });
-    const [newSubject, setNewSubject] = useState({ name: '' });
+    const [newSubject, setNewSubject] = useState({ name: '', priority: 0 });
 
-    // 🔥 NUOVO: Salva automaticamente quando i dati cambiano
+    // ðŸ”¥ NUOVO: Salva automaticamente quando i dati cambiano
     useEffect(() => {
         localStorage.setItem('nse_subjects', JSON.stringify(subjects));
     }, [subjects]);
@@ -165,17 +184,17 @@ const SchoolScheduleManager = () => {
         localStorage.setItem('nse_courses', JSON.stringify(courses));
     }, [courses]);
 
-    // 🔥 NUOVO: Funzioni Export/Import
+    // ðŸ”¥ NUOVO: Funzioni Export/Import
     const exportData = () => {
         const data = {
-            version: '3.7.1',
+            version: '4.0.2',
             exportDate: new Date().toISOString(),
             subjects,
             teachers,
             rooms,
             lessons,
             courses,
-            courseColorMap  // ← Aggiungo mappa colori
+            courseColorMap  // â† Aggiungo mappa colori
         };
         
         const dataStr = JSON.stringify(data, null, 2);
@@ -187,7 +206,7 @@ const SchoolScheduleManager = () => {
         link.click();
         URL.revokeObjectURL(url);
         
-        alert('✅ Dati esportati con successo!\n\n📁 File salvato come: ' + link.download);
+        alert('âœ… Dati esportati con successo!\n\nðŸ“ File salvato come: ' + link.download);
     };
 
     const importData = (event) => {
@@ -203,11 +222,11 @@ const SchoolScheduleManager = () => {
                     throw new Error('File non valido');
                 }
 
-                if (window.confirm('⚠️ ATTENZIONE!\n\nImportare i dati sovrascriverà tutti i dati attuali.\n\nContinuare?')) {
-                    // Gestione retrocompatibilità: se non ci sono subjects, usa quelli di default
+                if (window.confirm('âš ï¸ ATTENZIONE!\n\nImportare i dati sovrascriverÃ  tutti i dati attuali.\n\nContinuare?')) {
+                    // Gestione retrocompatibilitÃ : se non ci sono subjects, usa quelli di default
                     const importedSubjects = data.subjects || DEFAULT_SUBJECTS;
                     
-                    // Gestione retrocompatibilità: converti teachers con subject string in subjectIds
+                    // Gestione retrocompatibilitÃ : converti teachers con subject string in subjectIds
                     const importedTeachers = data.teachers.map(t => {
                         if (t.subject && !t.subjectIds) {
                             // Trova o crea la materia
@@ -231,7 +250,7 @@ const SchoolScheduleManager = () => {
                     if (data.courseColorMap) {
                         setCourseColorMap(data.courseColorMap);
                     } else {
-                        // Retrocompatibilità: assegna colori automaticamente ai corsi importati
+                        // RetrocompatibilitÃ : assegna colori automaticamente ai corsi importati
                         const newColorMap = {};
                         data.courses.forEach((course, index) => {
                             newColorMap[course.id] = index % COURSE_COLORS.length;
@@ -239,10 +258,10 @@ const SchoolScheduleManager = () => {
                         setCourseColorMap(newColorMap);
                     }
                     
-                    alert(`✅ Dati importati con successo!\n\n📊 Statistiche:\n• ${data.courses.length} corsi\n• ${data.teachers.length} docenti\n• ${importedSubjects.length} materie\n• ${data.rooms.length} aule\n• ${data.lessons.length} lezioni\n\nData export: ${new Date(data.exportDate).toLocaleString('it-IT')}`);
+                    alert(`âœ… Dati importati con successo!\n\nðŸ“Š Statistiche:\nâ€¢ ${data.courses.length} corsi\nâ€¢ ${data.teachers.length} docenti\nâ€¢ ${importedSubjects.length} materie\nâ€¢ ${data.rooms.length} aule\nâ€¢ ${data.lessons.length} lezioni\n\nData export: ${new Date(data.exportDate).toLocaleString('it-IT')}`);
                 }
             } catch (error) {
-                alert('❌ Errore durante l\'importazione!\n\n' + error.message);
+                alert('âŒ Errore durante l\'importazione!\n\n' + error.message);
             }
         };
         reader.readAsText(file);
@@ -250,8 +269,8 @@ const SchoolScheduleManager = () => {
     };
 
     const clearAllData = () => {
-        if (window.confirm('⚠️ ATTENZIONE!\n\nQuesta operazione cancellerà TUTTI i dati:\n• Tutti i corsi\n• Tutte le lezioni\n• Tutti i docenti\n• Tutte le aule\n• Tutte le materie\n\nVuoi continuare?')) {
-            if (window.confirm('🚨 SEI SICURO?\n\nQuesta operazione NON può essere annullata!\n\nConsigli prima di procedere:\n1. Esporta i dati come backup\n2. Conferma che vuoi davvero cancellare tutto')) {
+        if (window.confirm('âš ï¸ ATTENZIONE!\n\nQuesta operazione cancellerÃ  TUTTI i dati:\nâ€¢ Tutti i corsi\nâ€¢ Tutte le lezioni\nâ€¢ Tutti i docenti\nâ€¢ Tutte le aule\nâ€¢ Tutte le materie\n\nVuoi continuare?')) {
+            if (window.confirm('ðŸš¨ SEI SICURO?\n\nQuesta operazione NON puÃ² essere annullata!\n\nConsigli prima di procedere:\n1. Esporta i dati come backup\n2. Conferma che vuoi davvero cancellare tutto')) {
                 setSubjects(DEFAULT_SUBJECTS);
                 setTeachers(DEFAULT_TEACHERS);
                 setRooms(DEFAULT_ROOMS);
@@ -259,16 +278,16 @@ const SchoolScheduleManager = () => {
                 setCourses([]);
                 setCourseColorMap({});
                 localStorage.clear();
-                alert('✅ Tutti i dati sono stati cancellati!\n\nIl sistema è stato ripristinato con i dati di default.');
+                alert('âœ… Tutti i dati sono stati cancellati!\n\nIl sistema Ã¨ stato ripristinato con i dati di default.');
             }
         }
     };
 
-    const italianDays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    const italianDays = ['Domenica', 'LunedÃ¬', 'MartedÃ¬', 'MercoledÃ¬', 'GiovedÃ¬', 'VenerdÃ¬', 'Sabato'];
 
     const formatDate = (date) => new Date(date).toISOString().split('T')[0];
 
-    // ========== FESTIVITÀ ITALIANE ==========
+    // ========== FESTIVITÃ€ ITALIANE ==========
     
     // Calcola la data di Pasqua per un dato anno (algoritmo di Meeus/Jones/Butcher)
     const calculateEaster = (year) => {
@@ -289,14 +308,14 @@ const SchoolScheduleManager = () => {
         return new Date(year, month - 1, day);
     };
     
-    // Verifica se una data è una festività italiana
+    // Verifica se una data Ã¨ una festivitÃ  italiana
     const isItalianHoliday = (date) => {
         const d = new Date(date);
         const year = d.getFullYear();
         const month = d.getMonth(); // 0-11
         const day = d.getDate();
         
-        // Festività fisse
+        // FestivitÃ  fisse
         const fixedHolidays = [
             [0, 1],   // 1 gennaio - Capodanno
             [0, 2],   // 2 gennaio - Chiusura natalizia
@@ -317,7 +336,7 @@ const SchoolScheduleManager = () => {
             [11, 31]  // 31 dicembre - San Silvestro
         ];
         
-        // Controlla festività fisse
+        // Controlla festivitÃ  fisse
         for (let [m, da] of fixedHolidays) {
             if (month === m && day === da) return true;
         }
@@ -330,13 +349,13 @@ const SchoolScheduleManager = () => {
         // Controlla Pasqua
         if (month === easter.getMonth() && day === easter.getDate()) return true;
         
-        // Controlla Pasquetta (Lunedì dell'Angelo)
+        // Controlla Pasquetta (LunedÃ¬ dell'Angelo)
         if (month === easterMonday.getMonth() && day === easterMonday.getDate()) return true;
         
         return false;
     };
     
-    // Ottiene il nome della festività italiana
+    // Ottiene il nome della festivitÃ  italiana
     const getItalianHolidayName = (date) => {
         const d = new Date(date);
         const year = d.getFullYear();
@@ -568,7 +587,7 @@ const SchoolScheduleManager = () => {
                     (lessonEnd > existingStart && lessonEnd <= existingEnd) ||
                     (lessonStart <= existingStart && lessonEnd >= existingEnd)) {
                     const teacher = teachers.find(t => t.id === parseInt(lesson.teacherId));
-                    return `L'insegnante ${teacher?.name} ha già una lezione dalle ${existing.startTime} alle ${existingStart + existing.duration}:00`;
+                    return `L'insegnante ${teacher?.name} ha giÃ  una lezione dalle ${existing.startTime} alle ${existingStart + existing.duration}:00`;
                 }
             }
         }
@@ -624,12 +643,12 @@ const SchoolScheduleManager = () => {
             return;
         }
 
-        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\n🔥 SISTEMA MULTI-ITERAZIONE v3.5.1:\n• Rispetta SEMPRE maxDailyHours\n• Frammentazione intelligente lezioni\n• Estensione periodo se necessario\n• Controlli rigorosi anti-conflitto\n• Garantisce massimo completamento possibile`)) {
+        if (!window.confirm(`Vuoi calendarizzare automaticamente ${incompleteCourses.length} corsi?\n\n🔥 SISTEMA v4.0.2 - Blocchi 3-4h Prioritari:\n• Priorità materie: Sicurezza > Orientativa > Base > Altre\n• Blocchi preferiti: 4h → 3h → 2h\n• Mai stessa materia ripetuta nello stesso giorno per lo stesso corso\n• Target 6h/giorno per corso (cambia materia/docente se non ci arriva)\n• Riempie tutte le settimane e tutte le aule\n• Retry multi-strategia fino al 100%`)) {
             return;
         }
 
-        const newLessons = [];
-        
+        const TARGET_HOURS_PER_DAY_PER_COURSE = 6;
+
         // Helper: verifica se due lezioni si sovrappongono
         const lessonOverlaps = (lesson, hour, duration) => {
             const lessonStart = parseInt(lesson.startTime.split(':')[0]);
@@ -637,377 +656,563 @@ const SchoolScheduleManager = () => {
             const newEnd = hour + duration;
             return !(newEnd <= lessonStart || hour >= lessonEnd);
         };
-        
-        // Prepara dati corsi con tracking
-        const coursesData = incompleteCourses.map(course => {
-            const scheduled = getCourseScheduledHours(course.id);
-            const courseSubjects = getSubjectsFromTeachers(course);
-            
-            const teacherSubjectHours = {};
-            if (course.teachers) {
-                course.teachers.forEach(ct => {
-                    teacherSubjectHours[ct.teacherId] = {};
-                    (ct.subjects || []).forEach(s => {
-                        teacherSubjectHours[ct.teacherId][s.subjectId] = 0;
-                    });
-                });
-            }
-            
-            lessons.filter(l => l.courseId === course.id).forEach(lesson => {
-                const lessonSubject = courseSubjects.find(s => s.name === lesson.subject);
-                if (lessonSubject && teacherSubjectHours[lesson.teacherId]?.[lessonSubject.id] !== undefined) {
-                    teacherSubjectHours[lesson.teacherId][lessonSubject.id] += lesson.duration;
-                }
-            });
-            
-            return {
-                ...course,
-                remainingHours: calculateAssignedHours(course) - scheduled,
-                courseSubjects,
-                currentSubjectIndex: 0,
-                currentSubjectHours: 0,
-                teacherSubjectHours
-            };
-        }).filter(c => c.remainingHours > 0);
 
-        if (coursesData.length === 0) {
+        // Pseudo-random seedable shuffler
+        const seededRandom = (seed) => {
+            let s = seed;
+            return () => {
+                s = (s * 9301 + 49297) % 233280;
+                return s / 233280;
+            };
+        };
+        const shuffleArray = (arr, rng) => {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        };
+
+        // Costruisce lo stato iniziale dei corsi (chiamato ad ogni tentativo)
+        const buildInitialCoursesData = () => {
+            return incompleteCourses.map(course => {
+                const scheduled = getCourseScheduledHours(course.id);
+                const courseSubjects = getSubjectsFromTeachers(course);
+
+                // Arricchisci le materie con la priorità dal database materie
+                const enrichedSubjects = courseSubjects.map(cs => {
+                    const subjectDef = subjects.find(s => s.id === cs.id);
+                    const priority = subjectDef ? (parseInt(subjectDef.priority) || 0) : 0;
+                    const level = (priority >= 1 && priority <= 3) ? priority : 4;
+                    return { ...cs, priority, level };
+                });
+
+                // Ordina per livello priorità (1 prima), poi per ore decrescenti nel livello 4
+                enrichedSubjects.sort((a, b) => {
+                    if (a.level !== b.level) return a.level - b.level;
+                    if (a.level === 4 && b.level === 4) return b.hours - a.hours;
+                    return 0;
+                });
+
+                const teacherSubjectHours = {};
+                if (course.teachers) {
+                    course.teachers.forEach(ct => {
+                        teacherSubjectHours[ct.teacherId] = {};
+                        (ct.subjects || []).forEach(s => {
+                            teacherSubjectHours[ct.teacherId][s.subjectId] = 0;
+                        });
+                    });
+                }
+
+                lessons.filter(l => l.courseId === course.id).forEach(lesson => {
+                    const lessonSubject = enrichedSubjects.find(s => s.name === lesson.subject);
+                    if (lessonSubject && teacherSubjectHours[lesson.teacherId]?.[lessonSubject.id] !== undefined) {
+                        teacherSubjectHours[lesson.teacherId][lessonSubject.id] += lesson.duration;
+                    }
+                });
+
+                return {
+                    ...course,
+                    remainingHours: calculateAssignedHours(course) - scheduled,
+                    courseSubjects: enrichedSubjects,
+                    teacherSubjectHours
+                };
+            }).filter(c => c.remainingHours > 0);
+        };
+
+        // Trova range date globale (calcolato una volta)
+        const initialData = buildInitialCoursesData();
+        if (initialData.length === 0) {
             alert('Nessun corso da calendarizzare.');
             return;
         }
 
-        let latestEndDate = new Date(coursesData[0].endDate);
-        coursesData.forEach(c => {
-            const endDate = new Date(c.endDate);
-            if (endDate > latestEndDate) latestEndDate = endDate;
+        let earliestStart = new Date(initialData[0].startDate);
+        let latestEnd = new Date(initialData[0].endDate);
+        initialData.forEach(c => {
+            const start = new Date(c.startDate);
+            const end = new Date(c.endDate);
+            if (start < earliestStart) earliestStart = start;
+            if (end > latestEnd) latestEnd = end;
         });
 
-        let totalScheduledHours = 0;
-        let iteration = 0;
-        const MAX_ITERATIONS = 5;
-        let extendedDays = 0; // Giorni aggiuntivi oltre endDate
-        
-        // ========== SISTEMA MULTI-ITERAZIONE ==========
-        while (iteration < MAX_ITERATIONS && coursesData.some(c => c.remainingHours > 0)) {
-            iteration++;
-            
-            // ⚠️ IMPORTANTE: maxDailyHours NON viene MAI modificato - è un vincolo del corso!
-            // Strategie alternative per iterazioni successive
-            
-            if (iteration === 2) {
-                // PASS 2: Frammentazione lezioni (usa durate più corte per inserirsi meglio)
-                coursesData.forEach(c => {
-                    c.maxConsecutiveHours = Math.max(1, Math.floor(c.maxConsecutiveHours / 2));
-                });
-            } else if (iteration === 3) {
-                // PASS 3: Estende periodo ricerca di 30 giorni oltre endDate
-                extendedDays = 30;
-            } else if (iteration === 4) {
-                // PASS 4: Estende ulteriormente (60 giorni totali)
-                extendedDays = 60;
-            } else if (iteration >= 5) {
-                // PASS 5: Ultima chance - estende periodo e minima durata lezioni
-                extendedDays = 90;
-                coursesData.forEach(c => {
-                    c.maxConsecutiveHours = 1; // Lezioni da 1h per massima flessibilità
-                });
-            }
-            
-            // Calcola endDate estesa per questa iterazione
-            const iterationEndDate = new Date(latestEndDate);
-            iterationEndDate.setDate(iterationEndDate.getDate() + extendedDays);
-            
-            let currentDate = new Date();
+        const maxDays = 400;
+
+        // ==================== FUNZIONE TENTATIVO SINGOLO ====================
+        const runSchedulingAttempt = (strategy) => {
+            const rng = seededRandom(strategy.seed);
+            const coursesData = buildInitialCoursesData();
+            const newLessons = [];
+            let totalScheduledHours = 0;
+
+            let currentDate = new Date(earliestStart);
             let daysProcessed = 0;
-            const maxDays = 365 + extendedDays;
-            
-            // Loop principale per questa iterazione
-            while (coursesData.some(c => c.remainingHours > 0) && currentDate <= iterationEndDate && daysProcessed < maxDays) {
+
+            while (coursesData.some(c => c.remainingHours > 0) && currentDate <= latestEnd && daysProcessed < maxDays) {
                 const dayOfWeek = currentDate.getDay();
                 const dateStr = formatDate(currentDate);
-                
-                // Salta weekend e festività italiane
+
                 if (dayOfWeek === 0 || dayOfWeek === 6 || isItalianHoliday(dateStr)) {
                     currentDate.setDate(currentDate.getDate() + 1);
                     continue;
                 }
-                
+
                 daysProcessed++;
                 const todayLessons = [...lessons, ...newLessons].filter(l => l.date === dateStr);
-                
+
+                // Tracker giornalieri
                 const teacherDailyHours = {};
-                teachers.forEach(t => { teacherDailyHours[t.id] = 0; });
+                const teacherCourseDailyHours = {};
+                teachers.forEach(t => {
+                    teacherDailyHours[t.id] = 0;
+                    teacherCourseDailyHours[t.id] = {};
+                });
                 todayLessons.forEach(l => {
                     teacherDailyHours[l.teacherId] = (teacherDailyHours[l.teacherId] || 0) + l.duration;
+                    if (!teacherCourseDailyHours[l.teacherId]) teacherCourseDailyHours[l.teacherId] = {};
+                    teacherCourseDailyHours[l.teacherId][l.courseId] = (teacherCourseDailyHours[l.teacherId][l.courseId] || 0) + l.duration;
                 });
-                
+
+                const roomDailyHours = {};
+                rooms.forEach(r => { roomDailyHours[r.id] = 0; });
+                todayLessons.forEach(l => {
+                    roomDailyHours[l.roomId] = (roomDailyHours[l.roomId] || 0) + l.duration;
+                });
+
                 const courseDailyHours = {};
                 coursesData.forEach(c => { courseDailyHours[c.id] = 0; });
                 todayLessons.forEach(l => {
-                    courseDailyHours[l.courseId] = (courseDailyHours[l.courseId] || 0) + l.duration;
-                });
-                
-                const activeCourses = coursesData.filter(c => {
-                    const start = new Date(c.startDate);
-                    const end = new Date(c.endDate);
-                    const current = new Date(dateStr);
-                    
-                    if (current < start || current > end) return false;
-                    
-                    if (c.stageStartDate && c.stageEndDate) {
-                        const stageStart = new Date(c.stageStartDate);
-                        const stageEnd = new Date(c.stageEndDate);
-                        if (current >= stageStart && current <= stageEnd) return false;
+                    if (courseDailyHours[l.courseId] !== undefined) {
+                        courseDailyHours[l.courseId] = (courseDailyHours[l.courseId] || 0) + l.duration;
                     }
-                    
-                    return c.remainingHours > 0;
                 });
-                
-                if (activeCourses.length === 0) {
-                    currentDate.setDate(currentDate.getDate() + 1);
-                    continue;
-                }
-                
-                for (let hour = 9; hour < 18; hour++) {
-                    for (let course of activeCourses) {
+
+                // ⚠️ NUOVO: Tracker materie già piazzate per ogni corso oggi
+                // courseSubjectsPlacedToday[courseId] = Set of subjectId
+                const courseSubjectsPlacedToday = {};
+                coursesData.forEach(c => { courseSubjectsPlacedToday[c.id] = new Set(); });
+                todayLessons.forEach(l => {
+                    if (courseSubjectsPlacedToday[l.courseId]) {
+                        // Trova subjectId dalla lezione
+                        const courseObj = coursesData.find(c => c.id === l.courseId);
+                        if (courseObj) {
+                            const subj = courseObj.courseSubjects.find(s => s.name === l.subject);
+                            if (subj) courseSubjectsPlacedToday[l.courseId].add(subj.id);
+                        }
+                    }
+                });
+
+                const teacherCourseRoom = {};
+                todayLessons.forEach(l => {
+                    if (!teacherCourseRoom[l.teacherId]) teacherCourseRoom[l.teacherId] = {};
+                    teacherCourseRoom[l.teacherId][l.courseId] = l.roomId;
+                });
+
+                // Loop multi-pass nello stesso giorno per riempirlo bene
+                // Continua finché si riesce a piazzare qualcosa
+                let placedSomethingThisDay = true;
+                let dayPassCount = 0;
+                const MAX_DAY_PASSES = 10;
+
+                while (placedSomethingThisDay && dayPassCount < MAX_DAY_PASSES) {
+                    placedSomethingThisDay = false;
+                    dayPassCount++;
+
+                    // Costruisci lista task: per ogni corso, tutte le materie ancora schedulabili oggi
+                    const allTasks = [];
+
+                    for (let course of coursesData) {
                         if (course.remainingHours <= 0) continue;
-                        
+
+                        const start = new Date(course.startDate);
+                        const end = new Date(course.endDate);
+                        const current = new Date(dateStr);
+                        if (current < start || current > end) continue;
+
+                        if (course.stageStartDate && course.stageEndDate) {
+                            const stageStart = new Date(course.stageStartDate);
+                            const stageEnd = new Date(course.stageEndDate);
+                            if (current >= stageStart && current <= stageEnd) continue;
+                        }
+
                         const courseHoursToday = courseDailyHours[course.id] || 0;
                         if (courseHoursToday >= course.maxDailyHours) continue;
-                        
-                        if (course.currentSubjectIndex >= course.courseSubjects.length) continue;
-                        const currentSubject = course.courseSubjects[course.currentSubjectIndex];
-                        const remainingSubjectHours = currentSubject.hours - course.currentSubjectHours;
-                        
-                        if (remainingSubjectHours <= 0) {
-                            course.currentSubjectIndex++;
-                            course.currentSubjectHours = 0;
-                            continue;
-                        }
-                        
-                        // Calcola durata massima lezione
-                        let maxLessonDuration = Math.min(
-                            course.maxConsecutiveHours,
-                            remainingSubjectHours,
-                            course.remainingHours,
-                            course.maxDailyHours - courseHoursToday,
-                            18 - hour
-                        );
-                        
-                        if (maxLessonDuration < 1) continue;
-                        
-                        // TROVA AULA DISPONIBILE
-                        let availableRooms = rooms.filter(r => {
-                            if (r.capacity < course.numberOfStudents) return false;
-                            if (course.roomId && r.id !== course.roomId) return false;
-                            
-                            const roomBusy = todayLessons.some(l => {
-                                if (l.roomId !== r.id) return false;
-                                return lessonOverlaps(l, hour, maxLessonDuration);
+
+                        // Trova TUTTE le materie del corso ancora con ore disponibili E non già piazzate oggi
+                        for (let subj of course.courseSubjects) {
+                            // Skip se materia già piazzata oggi per questo corso
+                            if (courseSubjectsPlacedToday[course.id].has(subj.id)) continue;
+
+                            // Calcola ore già fatte per questa materia (totali sul corso)
+                            let totalDoneForSubject = 0;
+                            (course.teachers || []).forEach(ct => {
+                                const ts = (ct.subjects || []).find(s => s.subjectId === subj.id);
+                                if (ts) {
+                                    totalDoneForSubject += (course.teacherSubjectHours[ct.teacherId]?.[subj.id] || 0);
+                                }
                             });
-                            
-                            return !roomBusy;
+
+                            const remainingForSubject = subj.hours - totalDoneForSubject;
+                            if (remainingForSubject <= 0) continue;
+
+                            allTasks.push({
+                                course,
+                                subject: subj,
+                                remainingForSubject,
+                                priorityLevel: subj.level,
+                                courseHoursToday,
+                                subjectTotalHours: subj.hours
+                            });
+                        }
+                    }
+
+                    // Ordina task: priorità materia ASC, poi per corso con meno ore oggi
+                    allTasks.sort((a, b) => {
+                        if (a.priorityLevel !== b.priorityLevel) return a.priorityLevel - b.priorityLevel;
+                        if (a.priorityLevel === 4 && b.priorityLevel === 4) {
+                            // Lv.4: materia con più ore totali da fare prima
+                            if (b.subjectTotalHours !== a.subjectTotalHours) return b.subjectTotalHours - a.subjectTotalHours;
+                        }
+                        // Bilancia: corso con meno ore oggi prima
+                        return a.courseHoursToday - b.courseHoursToday;
+                    });
+
+                    if (strategy.shuffleTasks) {
+                        const grouped = {};
+                        allTasks.forEach(t => {
+                            if (!grouped[t.priorityLevel]) grouped[t.priorityLevel] = [];
+                            grouped[t.priorityLevel].push(t);
                         });
-                        
-                        if (availableRooms.length === 0) continue;
-                        const room = availableRooms[0];
-                        
-                        // ========== CONTROLLO CRITICO: CORSO NON IN ALTRA AULA ==========
-                        const courseInOtherRoom = todayLessons.some(l => 
-                            l.courseId === course.id && 
-                            l.roomId !== room.id &&
-                            lessonOverlaps(l, hour, maxLessonDuration)
+                        allTasks.length = 0;
+                        Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b)).forEach(lvl => {
+                            const shuffled = shuffleArray(grouped[lvl], rng);
+                            shuffled.forEach(t => allTasks.push(t));
+                        });
+                    }
+
+                    // Prova a piazzare ogni task
+                    for (let task of allTasks) {
+                        const { course, subject: activeSubject, remainingForSubject } = task;
+
+                        if (course.remainingHours <= 0) continue;
+                        const courseHoursToday = courseDailyHours[course.id] || 0;
+                        if (courseHoursToday >= course.maxDailyHours) continue;
+
+                        // Skip se materia già piazzata in questo loop
+                        if (courseSubjectsPlacedToday[course.id].has(activeSubject.id)) continue;
+
+                        // Calcola durata massima possibile
+                        const maxPossibleDuration = Math.min(
+                            course.maxConsecutiveHours,
+                            remainingForSubject,
+                            course.remainingHours,
+                            course.maxDailyHours - courseHoursToday
                         );
-                        
-                        if (courseInOtherRoom) {
-                            continue; // BLOCCA: corso già attivo altrove
-                        }
-                        
-                        // TROVA DOCENTE DISPONIBILE
-                        let selectedTeacher = null;
-                        let finalLessonDuration = maxLessonDuration;
-                        
-                        const teacherCandidates = (course.teachers || [])
-                            .map(ct => {
-                                const teacher = teachers.find(t => t.id === ct.teacherId);
-                                const hoursToday = teacherDailyHours[ct.teacherId] || 0;
-                                const minDaily = teacher?.minDailyHours || 0;
-                                const isBelowMin = minDaily > 0 && hoursToday < minDaily;
-                                
-                                // Conta in quanti corsi diversi ha già lavorato oggi
-                                const coursesWorkedToday = new Set(
-                                    todayLessons
-                                        .filter(l => l.teacherId === ct.teacherId)
-                                        .map(l => l.courseId)
-                                ).size;
-                                
-                                return {
-                                    ...ct,
-                                    teacher,
-                                    hoursToday,
-                                    minDaily,
-                                    isBelowMin,
-                                    coursesWorkedToday
-                                };
-                            })
-                            .filter(ct => ct.teacher)
-                            .sort((a, b) => {
-                                // PRIORITÀ 1: Docenti sotto il loro minimo giornaliero
-                                if (a.isBelowMin !== b.isBelowMin) {
-                                    return a.isBelowMin ? -1 : 1;
+
+                        if (maxPossibleDuration < strategy.minDuration) continue;
+
+                        // Prova le durate in ordine secondo la strategia (4h → 3h → 2h)
+                        let placed = false;
+
+                        for (let preferredDuration of strategy.durationsToTry) {
+                            if (placed) break;
+                            const tryDuration = Math.min(preferredDuration, maxPossibleDuration);
+                            if (tryDuration < strategy.minDuration) continue;
+
+                            // Cerca uno slot orario valido (prova tutte le ore del giorno)
+                            for (let hour = 9; hour <= 18 - tryDuration; hour++) {
+                                if (placed) break;
+
+                                // TROVA AULA DISPONIBILE
+                                let availableRooms = rooms.filter(r => {
+                                    if (r.capacity < course.numberOfStudents) return false;
+                                    if (course.roomId && r.id !== course.roomId) return false;
+
+                                    const roomBusy = todayLessons.some(l => {
+                                        if (l.roomId !== r.id) return false;
+                                        return lessonOverlaps(l, hour, tryDuration);
+                                    });
+                                    return !roomBusy;
+                                });
+
+                                if (availableRooms.length === 0) continue;
+
+                                const teachersForCourse = (course.teachers || [])
+                                    .map(ct => teachers.find(t => t.id === ct.teacherId))
+                                    .filter(Boolean);
+
+                                let sortedRooms = availableRooms.sort((a, b) => {
+                                    const aUsed = teachersForCourse.some(t => teacherCourseRoom[t.id]?.[course.id] === a.id);
+                                    const bUsed = teachersForCourse.some(t => teacherCourseRoom[t.id]?.[course.id] === b.id);
+                                    if (aUsed && !bUsed) return -1;
+                                    if (!aUsed && bUsed) return 1;
+
+                                    const hoursA = roomDailyHours[a.id] || 0;
+                                    const hoursB = roomDailyHours[b.id] || 0;
+                                    if (hoursA !== hoursB) return hoursA - hoursB;
+
+                                    return (a.capacity - course.numberOfStudents) - (b.capacity - course.numberOfStudents);
+                                });
+
+                                if (strategy.shuffleRooms && sortedRooms.length > 1) {
+                                    sortedRooms = shuffleArray(sortedRooms, rng);
                                 }
-                                
-                                // PRIORITÀ 2: Alternanza corsi (preferisci chi ha lavorato in meno corsi oggi)
-                                if (a.coursesWorkedToday !== b.coursesWorkedToday) {
-                                    return a.coursesWorkedToday - b.coursesWorkedToday;
+
+                                // Prova ogni aula
+                                for (let room of sortedRooms) {
+                                    if (placed) break;
+
+                                    const courseInOtherRoom = todayLessons.some(l =>
+                                        l.courseId === course.id &&
+                                        l.roomId !== room.id &&
+                                        lessonOverlaps(l, hour, tryDuration)
+                                    );
+                                    if (courseInOtherRoom) continue;
+
+                                    // TROVA DOCENTE DISPONIBILE
+                                    let teacherCandidates = (course.teachers || [])
+                                        .map(ct => {
+                                            const teacher = teachers.find(t => t.id === ct.teacherId);
+                                            const totalToday = teacherDailyHours[ct.teacherId] || 0;
+                                            const courseToday = teacherCourseDailyHours[ct.teacherId]?.[course.id] || 0;
+                                            const minDaily = teacher?.minDailyHours || 0;
+                                            const isBelowMin = minDaily > 0 && totalToday < minDaily;
+
+                                            return {
+                                                ...ct,
+                                                teacher,
+                                                totalToday,
+                                                courseToday,
+                                                minDaily,
+                                                isBelowMin
+                                            };
+                                        })
+                                        .filter(ct => ct.teacher);
+
+                                    teacherCandidates.sort((a, b) => {
+                                        if (a.isBelowMin !== b.isBelowMin) return a.isBelowMin ? -1 : 1;
+                                        // Bilancia per ore totali oggi
+                                        if (a.totalToday !== b.totalToday) return a.totalToday - b.totalToday;
+                                        return a.courseToday - b.courseToday;
+                                    });
+
+                                    if (strategy.shuffleTeachers && teacherCandidates.length > 1) {
+                                        teacherCandidates = shuffleArray(teacherCandidates, rng);
+                                    }
+
+                                    for (let ct of teacherCandidates) {
+                                        const teacherSubject = (ct.subjects || []).find(s => s.subjectId === activeSubject.id);
+                                        if (!teacherSubject || teacherSubject.hours <= 0) continue;
+
+                                        const hoursAlreadyDone = course.teacherSubjectHours[ct.teacherId]?.[activeSubject.id] || 0;
+                                        if (hoursAlreadyDone >= teacherSubject.hours) continue;
+
+                                        const teacherRemainingForSubject = teacherSubject.hours - hoursAlreadyDone;
+                                        let lessonDuration = Math.min(tryDuration, teacherRemainingForSubject);
+
+                                        if (lessonDuration < strategy.minDuration) continue;
+
+                                        const teacherHoursToday = teacherDailyHours[ct.teacherId] || 0;
+                                        if (teacherHoursToday >= 8) continue;
+
+                                        lessonDuration = Math.min(lessonDuration, 8 - teacherHoursToday);
+                                        if (lessonDuration < strategy.minDuration) continue;
+
+                                        // Verifica disponibilità per tutta la durata
+                                        let allHoursAvailable = true;
+                                        for (let h = hour; h < hour + lessonDuration; h++) {
+                                            const hStr = `${h.toString().padStart(2, '0')}:00`;
+                                            if (!isTeacherAvailable(ct.teacherId, dateStr, hStr)) {
+                                                allHoursAvailable = false;
+                                                break;
+                                            }
+                                        }
+                                        if (!allHoursAvailable) continue;
+
+                                        const teacherBusy = todayLessons.some(l => {
+                                            if (l.teacherId !== ct.teacherId) return false;
+                                            return lessonOverlaps(l, hour, lessonDuration);
+                                        });
+                                        if (teacherBusy) continue;
+
+                                        const teacherInOtherCourse = todayLessons.some(l =>
+                                            l.teacherId === ct.teacherId &&
+                                            l.courseId !== course.id &&
+                                            lessonOverlaps(l, hour, lessonDuration)
+                                        );
+                                        if (teacherInOtherCourse) continue;
+
+                                        const roomBusyFull = todayLessons.some(l => {
+                                            if (l.roomId !== room.id) return false;
+                                            return lessonOverlaps(l, hour, lessonDuration);
+                                        });
+                                        if (roomBusyFull) continue;
+
+                                        // CREA LEZIONE
+                                        const newLesson = {
+                                            id: Date.now() + newLessons.length + Math.random(),
+                                            teacherId: ct.teacher.id,
+                                            roomId: room.id,
+                                            date: dateStr,
+                                            dayOfWeek: italianDays[currentDate.getDay()],
+                                            startTime: `${hour.toString().padStart(2, '0')}:00`,
+                                            duration: lessonDuration,
+                                            subject: activeSubject.name,
+                                            courseId: course.id,
+                                            numberOfStudents: course.numberOfStudents
+                                        };
+
+                                        newLessons.push(newLesson);
+                                        todayLessons.push(newLesson);
+
+                                        course.remainingHours -= lessonDuration;
+                                        course.teacherSubjectHours[ct.teacher.id][activeSubject.id] += lessonDuration;
+                                        teacherDailyHours[ct.teacher.id] = (teacherDailyHours[ct.teacher.id] || 0) + lessonDuration;
+                                        if (!teacherCourseDailyHours[ct.teacher.id]) teacherCourseDailyHours[ct.teacher.id] = {};
+                                        teacherCourseDailyHours[ct.teacher.id][course.id] = (teacherCourseDailyHours[ct.teacher.id][course.id] || 0) + lessonDuration;
+                                        roomDailyHours[room.id] = (roomDailyHours[room.id] || 0) + lessonDuration;
+                                        courseDailyHours[course.id] = (courseDailyHours[course.id] || 0) + lessonDuration;
+                                        courseSubjectsPlacedToday[course.id].add(activeSubject.id);
+
+                                        if (!teacherCourseRoom[ct.teacher.id]) teacherCourseRoom[ct.teacher.id] = {};
+                                        teacherCourseRoom[ct.teacher.id][course.id] = room.id;
+
+                                        totalScheduledHours += lessonDuration;
+                                        placed = true;
+                                        placedSomethingThisDay = true;
+                                        break;
+                                    }
                                 }
-                                
-                                // PRIORITÀ 3: Meno ore fatte oggi
-                                return a.hoursToday - b.hoursToday;
-                            });
-                        
-                        for (let ct of teacherCandidates) {
-                            const teacherSubject = (ct.subjects || []).find(s => s.subjectId === currentSubject.id);
-                            if (!teacherSubject || teacherSubject.hours <= 0) continue;
-                            
-                            const hoursAlreadyDone = course.teacherSubjectHours[ct.teacherId]?.[currentSubject.id] || 0;
-                            if (hoursAlreadyDone >= teacherSubject.hours) continue;
-                            
-                            const teacherRemainingForSubject = teacherSubject.hours - hoursAlreadyDone;
-                            let lessonDuration = Math.min(maxLessonDuration, teacherRemainingForSubject);
-                            
-                            const teacherHoursToday = teacherDailyHours[ct.teacherId] || 0;
-                            if (teacherHoursToday >= 8) continue;
-                            
-                            const startTimeStr = `${hour.toString().padStart(2, '0')}:00`;
-                            if (!isTeacherAvailable(ct.teacherId, dateStr, startTimeStr)) continue;
-                            
-                            const teacherBusy = todayLessons.some(l => {
-                                if (l.teacherId !== ct.teacherId) return false;
-                                return lessonOverlaps(l, hour, lessonDuration);
-                            });
-                            
-                            if (teacherBusy) continue;
-                            
-                            // ========== CONTROLLO CRITICO: DOCENTE NON IN ALTRO CORSO ==========
-                            const teacherInOtherCourse = todayLessons.some(l =>
-                                l.teacherId === ct.teacherId &&
-                                l.courseId !== course.id &&
-                                lessonOverlaps(l, hour, lessonDuration)
-                            );
-                            
-                            if (teacherInOtherCourse) {
-                                continue; // BLOCCA: docente già impegnato in altro corso
                             }
-                            
-                            selectedTeacher = ct.teacher;
-                            finalLessonDuration = lessonDuration;
-                            break;
-                        }
-                        
-                        if (!selectedTeacher) {
-                            const allTeachersCompleted = (course.teachers || []).every(ct => {
-                                const ts = (ct.subjects || []).find(s => s.subjectId === currentSubject.id);
-                                if (!ts || ts.hours <= 0) return true;
-                                const done = course.teacherSubjectHours[ct.teacherId]?.[currentSubject.id] || 0;
-                                return done >= ts.hours;
-                            });
-                            
-                            if (allTeachersCompleted) {
-                                course.currentSubjectIndex++;
-                                course.currentSubjectHours = 0;
-                            }
-                            
-                            continue;
-                        }
-                        
-                        // CREA LEZIONE - doppio controllo finale
-                        const finalCheck = todayLessons.some(l => 
-                            (l.courseId === course.id && l.roomId !== room.id && lessonOverlaps(l, hour, finalLessonDuration)) ||
-                            (l.teacherId === selectedTeacher.id && l.courseId !== course.id && lessonOverlaps(l, hour, finalLessonDuration))
-                        );
-                        
-                        if (finalCheck) continue;
-                        
-                        const newLesson = {
-                            id: Date.now() + newLessons.length + Math.random(),
-                            teacherId: selectedTeacher.id,
-                            roomId: room.id,
-                            date: dateStr,
-                            dayOfWeek: italianDays[currentDate.getDay()],
-                            startTime: `${hour.toString().padStart(2, '0')}:00`,
-                            duration: finalLessonDuration,
-                            subject: currentSubject.name,
-                            courseId: course.id,
-                            numberOfStudents: course.numberOfStudents
-                        };
-                        
-                        newLessons.push(newLesson);
-                        todayLessons.push(newLesson);
-                        
-                        course.remainingHours -= finalLessonDuration;
-                        course.currentSubjectHours += finalLessonDuration;
-                        course.teacherSubjectHours[selectedTeacher.id][currentSubject.id] += finalLessonDuration;
-                        teacherDailyHours[selectedTeacher.id] = (teacherDailyHours[selectedTeacher.id] || 0) + finalLessonDuration;
-                        courseDailyHours[course.id] = (courseDailyHours[course.id] || 0) + finalLessonDuration;
-                        totalScheduledHours += finalLessonDuration;
-                        
-                        if (course.currentSubjectHours >= currentSubject.hours) {
-                            course.currentSubjectIndex++;
-                            course.currentSubjectHours = 0;
                         }
                     }
                 }
-                
+
                 currentDate.setDate(currentDate.getDate() + 1);
             }
-            
-            // Verifica progresso iterazione
-            const remainingTotal = coursesData.reduce((sum, c) => sum + c.remainingHours, 0);
-            if (remainingTotal === 0) break; // Tutti completati!
+
+            const remaining = coursesData.reduce((s, c) => s + c.remainingHours, 0);
+            return { coursesData, newLessons, totalScheduledHours, remaining };
+        };
+
+        // ==================== RETRY LOOP ====================
+        const MAX_ATTEMPTS = 50;
+        const strategies = [
+            // Strategia 0: Blocchi 4h prioritari, poi 3h, poi 2h
+            { seed: 1, durationsToTry: [4, 3, 2], minDuration: 2, shuffleTasks: false, shuffleTeachers: false, shuffleRooms: false },
+            // Strategia 1: 3h prioritari, poi 4h, poi 2h
+            { seed: 2, durationsToTry: [3, 4, 2], minDuration: 2, shuffleTasks: false, shuffleTeachers: false, shuffleRooms: false },
+            // Strategia 2: Solo 4h e 3h
+            { seed: 3, durationsToTry: [4, 3], minDuration: 3, shuffleTasks: false, shuffleTeachers: false, shuffleRooms: false },
+            // Strategia 3: 4h prioritari, poi 2h
+            { seed: 4, durationsToTry: [4, 2], minDuration: 2, shuffleTasks: false, shuffleTeachers: false, shuffleRooms: false },
+            // Strategia 4: 3h e 2h
+            { seed: 5, durationsToTry: [3, 2], minDuration: 2, shuffleTasks: false, shuffleTeachers: false, shuffleRooms: false },
+            // Strategia 5: Standard con shuffle
+            { seed: 6, durationsToTry: [4, 3, 2], minDuration: 2, shuffleTasks: true, shuffleTeachers: true, shuffleRooms: true },
+        ];
+
+        // Strategie randomizzate per i tentativi successivi
+        for (let i = 0; i < MAX_ATTEMPTS - strategies.length; i++) {
+            const variants = [
+                [4, 3, 2],
+                [3, 4, 2],
+                [4, 2, 3],
+                [4, 3],
+                [3, 2],
+                [4, 2]
+            ];
+            strategies.push({
+                seed: 100 + i * 13,
+                durationsToTry: variants[i % variants.length],
+                minDuration: 2,
+                shuffleTasks: true,
+                shuffleTeachers: true,
+                shuffleRooms: true
+            });
         }
 
-        // REPORT FINALE
-        if (newLessons.length > 0) {
-            setLessons([...lessons, ...newLessons]);
-            
-            const completedCourses = coursesData.filter(c => c.remainingHours <= 0);
-            const partialCourses = coursesData.filter(c => c.remainingHours > 0);
-            
-            let message = `✅ Calendarizzazione completata in ${iteration} iterazioni!\\n\\n` +
-                  `📚 Lezioni create: ${newLessons.length}\\n` +
-                  `⏱️ Ore totali programmate: ${totalScheduledHours}h\\n` +
-                  `✅ Corsi completati: ${completedCourses.length}/${coursesData.length}`;
-            
-            if (completedCourses.length === coursesData.length) {
-                message += '\\n\\n🎉 SUCCESSO: Tutti i corsi al 100%!';
+        let bestResult = null;
+        let attemptsUsed = 0;
+
+        for (let i = 0; i < strategies.length; i++) {
+            attemptsUsed++;
+            const result = runSchedulingAttempt(strategies[i]);
+
+            if (!bestResult || result.remaining < bestResult.remaining) {
+                bestResult = result;
+            }
+
+            if (result.remaining === 0) break; // 100% raggiunto!
+        }
+
+        // ==================== APPLICA RISULTATO ====================
+        if (bestResult && bestResult.newLessons.length > 0) {
+            setLessons([...lessons, ...bestResult.newLessons]);
+
+            const completedCourses = bestResult.coursesData.filter(c => c.remainingHours <= 0);
+            const partialCourses = bestResult.coursesData.filter(c => c.remainingHours > 0);
+
+            // Statistiche durata blocchi
+            const blockStats = { 4: 0, 3: 0, 2: 0, 1: 0, other: 0 };
+            bestResult.newLessons.forEach(l => {
+                if (blockStats[l.duration] !== undefined) blockStats[l.duration]++;
+                else blockStats.other++;
+            });
+
+            const teacherCourseStats = {};
+            bestResult.newLessons.forEach(l => {
+                const key = `${l.teacherId}`;
+                if (!teacherCourseStats[key]) teacherCourseStats[key] = new Set();
+                teacherCourseStats[key].add(l.courseId);
+            });
+            const multiCourseTeachers = Object.entries(teacherCourseStats)
+                .filter(([_, courses]) => courses.size > 1).length;
+
+            let message = `✅ Calendarizzazione v4.0.2 completata!\n\n` +
+                  `🔄 Tentativi effettuati: ${attemptsUsed}\n` +
+                  `📚 Lezioni create: ${bestResult.newLessons.length}\n` +
+                  `⏱️ Ore totali programmate: ${bestResult.totalScheduledHours}h\n` +
+                  `✅ Corsi completati: ${completedCourses.length}/${bestResult.coursesData.length}\n` +
+                  `👥 Docenti multi-corso: ${multiCourseTeachers}\n\n` +
+                  `📊 Distribuzione blocchi:\n` +
+                  `  • 4h: ${blockStats[4]}\n` +
+                  `  • 3h: ${blockStats[3]}\n` +
+                  `  • 2h: ${blockStats[2]}`;
+
+            if (completedCourses.length === bestResult.coursesData.length) {
+                message += '\n\n🎉 SUCCESSO: Tutti i corsi al 100%!';
             } else {
-                message += `\\n\\n⚠️ Corsi parziali: ${partialCourses.length}`;
+                message += `\n\n⚠️ Risultato MIGLIORE su ${attemptsUsed} tentativi.`;
+                message += `\n⚠️ Corsi parziali: ${partialCourses.length}`;
                 partialCourses.forEach(c => {
                     const percentage = Math.round((1 - c.remainingHours / calculateAssignedHours(c)) * 100);
-                    message += `\\n\\n📚 ${c.name}:`;
-                    message += `\\n  • Completato: ${percentage}%`;
-                    message += `\\n  • Ore mancanti: ${c.remainingHours}h`;
+                    message += `\n\n📚 ${c.name}:`;
+                    message += `\n  • Completato: ${percentage}%`;
+                    message += `\n  • Ore mancanti: ${c.remainingHours}h`;
                 });
-                message += '\\n\\n💡 Suggerimenti:\\n• Estendi periodo corso\\n• Riduci ore assegnate\\n• Aggiungi più docenti\\n• Verifica indisponibilità';
+                message += '\n\n💡 Suggerimenti:\n• Estendi periodo corso\n• Riduci ore assegnate\n• Aggiungi più docenti\n• Verifica indisponibilità';
             }
-            
+
             alert(message);
         } else {
-            alert('❌ Nessuna lezione creata. Verifica:\\n\\n• Date dei corsi\\n• Docenti assegnati\\n• Aule disponibili\\n• Indisponibilità docenti');
+            alert('❌ Nessuna lezione creata dopo ' + attemptsUsed + ' tentativi. Verifica:\n\n• Date dei corsi\n• Docenti assegnati\n• Aule disponibili\n• Indisponibilità docenti');
         }
     };
-    const clearCourseCalendar = (courseId) => {
+
+        const clearCourseCalendar = (courseId) => {
         const course = courses.find(c => c.id === courseId);
         const courseLessons = lessons.filter(l => l.courseId === courseId);
         
         if (courseLessons.length === 0) {
-            alert('📅 Questo corso non ha lezioni calendarizzate.');
+            alert('ðŸ“… Questo corso non ha lezioni calendarizzate.');
             return;
         }
         
-        if (window.confirm(`🗑️ Vuoi cancellare tutte le ${courseLessons.length} lezioni del corso "${course.name}"?\n\nQuesta operazione non può essere annullata.`)) {
+        if (window.confirm(`ðŸ—‘ï¸ Vuoi cancellare tutte le ${courseLessons.length} lezioni del corso "${course.name}"?\n\nQuesta operazione non puÃ² essere annullata.`)) {
             setLessons(lessons.filter(l => l.courseId !== courseId));
-            alert(`✅ Calendario del corso "${course.name}" cancellato!\n\n${courseLessons.length} lezioni eliminate.`);
+            alert(`âœ… Calendario del corso "${course.name}" cancellato!\n\n${courseLessons.length} lezioni eliminate.`);
         }
     };
 
@@ -1021,12 +1226,12 @@ const SchoolScheduleManager = () => {
         const totalAssignedHours = calculateAssignedHours(course);
         
         if (totalAssignedHours === 0) {
-            alert('⚠️ Il corso non ha ore assegnate ai docenti! Aggiungi docenti e assegna ore per materia.');
+            alert('âš ï¸ Il corso non ha ore assegnate ai docenti! Aggiungi docenti e assegna ore per materia.');
             return;
         }
         
         if (alreadyScheduled >= totalAssignedHours) {
-            alert('⚠️ Il corso è già completamente calendarizzato!');
+            alert('âš ï¸ Il corso Ã¨ giÃ  completamente calendarizzato!');
             return;
         }
 
@@ -1043,7 +1248,7 @@ const SchoolScheduleManager = () => {
 
         const courseSubjects = getSubjectsFromTeachers(course);
         if (courseSubjects.length === 0) {
-            alert('⚠️ Nessuna materia con ore assegnate!');
+            alert('âš ï¸ Nessuna materia con ore assegnate!');
             return;
         }
         
@@ -1061,7 +1266,7 @@ const SchoolScheduleManager = () => {
                 }
             });
             
-            // Conta ore già schedulate
+            // Conta ore giÃ  schedulate
             lessons.filter(l => l.courseId === course.id).forEach(lesson => {
                 if (teacherSubjectHoursTotal[lesson.teacherId]) {
                     const lessonSubject = courseSubjects.find(s => s.name === lesson.subject);
@@ -1152,7 +1357,7 @@ const SchoolScheduleManager = () => {
                         const teacherSubject = (courseTeacher.subjects || []).find(s => s.subjectId === currentSubject.id);
                         if (!teacherSubject || teacherSubject.hours <= 0) continue;
                         
-                        // Verifica quante ore ha già fatto per questa materia
+                        // Verifica quante ore ha giÃ  fatto per questa materia
                         const hoursAlreadyDone = teacherSubjectHoursTotal[courseTeacher.teacherId]?.[currentSubject.id] || 0;
                         if (hoursAlreadyDone >= teacherSubject.hours) continue;
                         
@@ -1267,9 +1472,9 @@ const SchoolScheduleManager = () => {
         if (newLessons.length > 0) {
             const newTotal = totalScheduledHours - alreadyScheduled;
             setLessons([...lessons, ...newLessons]);
-            alert(`✅ Corso calendarizzato! Create ${newLessons.length} lezioni per ${newTotal}h.\nTotale: ${totalScheduledHours}h/${totalAssignedHours}h (${((totalScheduledHours/totalAssignedHours)*100).toFixed(1)}%)`);
+            alert(`âœ… Corso calendarizzato! Create ${newLessons.length} lezioni per ${newTotal}h.\nTotale: ${totalScheduledHours}h/${totalAssignedHours}h (${((totalScheduledHours/totalAssignedHours)*100).toFixed(1)}%)`);
         } else {
-            alert('❌ Impossibile calendarizzare il corso.');
+            alert('âŒ Impossibile calendarizzare il corso.');
         }
     };
 
@@ -1277,7 +1482,7 @@ const SchoolScheduleManager = () => {
         if (newLesson.teacherId && newLesson.roomId && newLesson.subject && newLesson.date && newLesson.numberOfStudents) {
             if (!isTeacherAvailable(parseInt(newLesson.teacherId), newLesson.date, newLesson.startTime)) {
                 const teacher = teachers.find(t => t.id === parseInt(newLesson.teacherId));
-                alert(`⚠️ Il docente ${teacher?.name} non è disponibile in questa data/orario!\n\nVerifica le indisponibilità del docente nella sezione Docenti.`);
+                alert(`âš ï¸ Il docente ${teacher?.name} non Ã¨ disponibile in questa data/orario!\n\nVerifica le indisponibilitÃ  del docente nella sezione Docenti.`);
                 return;
             }
             
@@ -1295,7 +1500,7 @@ const SchoolScheduleManager = () => {
                     const newTotal = currentScheduled + parseInt(newLesson.duration);
                     const assignedHours = calculateAssignedHours(course);
                     if (newTotal > assignedHours) {
-                        alert(`⚠️ Attenzione! Questa lezione porterebbe il corso a ${newTotal}h su ${course.totalHours}h totali (${((newTotal/course.totalHours)*100).toFixed(1)}%).\n\nIl corso verrebbe programmato oltre il 100%.`);
+                        alert(`âš ï¸ Attenzione! Questa lezione porterebbe il corso a ${newTotal}h su ${course.totalHours}h totali (${((newTotal/course.totalHours)*100).toFixed(1)}%).\n\nIl corso verrebbe programmato oltre il 100%.`);
                         if (!window.confirm('Vuoi procedere comunque?')) {
                             return;
                         }
@@ -1347,7 +1552,7 @@ const SchoolScheduleManager = () => {
         if (editingLesson.teacherId && editingLesson.roomId && editingLesson.subject && editingLesson.numberOfStudents) {
             if (!isTeacherAvailable(parseInt(editingLesson.teacherId), editingLesson.date, editingLesson.startTime)) {
                 const teacher = teachers.find(t => t.id === parseInt(editingLesson.teacherId));
-                alert(`⚠️ Il docente ${teacher?.name} non è disponibile in questa data/orario!\n\nVerifica le indisponibilità del docente nella sezione Docenti.`);
+                alert(`âš ï¸ Il docente ${teacher?.name} non Ã¨ disponibile in questa data/orario!\n\nVerifica le indisponibilitÃ  del docente nella sezione Docenti.`);
                 return;
             }
             
@@ -1367,7 +1572,7 @@ const SchoolScheduleManager = () => {
                     const newTotal = currentScheduled + durationDiff;
                     if (newTotal > course.totalHours && durationDiff > 0) {
                     const assignedHours = calculateAssignedHours(course);
-                        alert(`⚠️ Attenzione! Questa modifica porterebbe il corso a ${newTotal}h su ${assignedHours}h (${((newTotal/assignedHours)*100).toFixed(1)}%).`);
+                        alert(`âš ï¸ Attenzione! Questa modifica porterebbe il corso a ${newTotal}h su ${assignedHours}h (${((newTotal/assignedHours)*100).toFixed(1)}%).`);
                         if (!window.confirm('Vuoi procedere comunque?')) {
                             return;
                         }
@@ -1432,7 +1637,7 @@ const SchoolScheduleManager = () => {
             const currentScheduled = getCourseScheduledHours(editingCourse.id);
             const newTotalHours = parseInt(editingCourse.totalHours);
             if (newTotalHours < currentScheduled) {
-                alert(`⚠️ Attenzione! Hai già ${currentScheduled}h programmate per questo corso.\nNon puoi impostare il totale a ${newTotalHours}h.`);
+                alert(`âš ï¸ Attenzione! Hai giÃ  ${currentScheduled}h programmate per questo corso.\nNon puoi impostare il totale a ${newTotalHours}h.`);
                 return;
             }
             
@@ -1493,7 +1698,7 @@ const SchoolScheduleManager = () => {
             }
         }
         setCourseColorMap(prev => ({...prev, [duplicated.id]: availableColor}));
-        alert(`✅ Corso duplicato con successo!\n\n📚 Nuovo corso: "${duplicated.name}"\n\n⚠️ Nota: Solo la struttura del corso è stata duplicata. Le lezioni non sono state copiate.`);
+        alert(`âœ… Corso duplicato con successo!\n\nðŸ“š Nuovo corso: "${duplicated.name}"\n\nâš ï¸ Nota: Solo la struttura del corso Ã¨ stata duplicata. Le lezioni non sono state copiate.`);
     };
 
     const addTeacher = () => {
@@ -1556,15 +1761,15 @@ const SchoolScheduleManager = () => {
 
     const addSubject = () => {
         if (newSubject.name) {
-            setSubjects([...subjects, { ...newSubject, id: Date.now() }]);
-            setNewSubject({ name: '' });
+            setSubjects([...subjects, { ...newSubject, id: Date.now(), priority: parseInt(newSubject.priority) || 0 }]);
+            setNewSubject({ name: '', priority: 0 });
             setShowAddSubject(false);
         }
     };
 
     const updateSubject = () => {
         if (editingSubject.name) {
-            setSubjects(subjects.map(s => s.id === editingSubject.id ? editingSubject : s));
+            setSubjects(subjects.map(s => s.id === editingSubject.id ? {...editingSubject, priority: parseInt(editingSubject.priority) || 0} : s));
             setShowEditSubject(false);
             setEditingSubject(null);
         }
@@ -1576,7 +1781,7 @@ const SchoolScheduleManager = () => {
         
         if (teachersWithSubject.length > 0) {
             const teacherNames = teachersWithSubject.map(t => t.name).join(', ');
-            if (!window.confirm(`⚠️ Attenzione!\n\nQuesta materia è assegnata a ${teachersWithSubject.length} docenti:\n${teacherNames}\n\nLa materia verrà rimossa anche dai docenti. Continuare?`)) {
+            if (!window.confirm(`âš ï¸ Attenzione!\n\nQuesta materia Ã¨ assegnata a ${teachersWithSubject.length} docenti:\n${teacherNames}\n\nLa materia verrÃ  rimossa anche dai docenti. Continuare?`)) {
                 return;
             }
             // Rimuovi la materia dai docenti
@@ -1731,12 +1936,12 @@ const SchoolScheduleManager = () => {
             <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-yellow-300">
                 <h4 className="font-bold mb-3 flex items-center gap-2">
                     <ClockIcon />
-                    Gestione Indisponibilità
+                    Gestione IndisponibilitÃ 
                 </h4>
                 
                 <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
                     <p className="text-sm text-blue-800">
-                        <strong>Come funziona:</strong> Seleziona i giorni e le fasce orarie in cui il docente NON è disponibile per fare lezione.
+                        <strong>Come funziona:</strong> Seleziona i giorni e le fasce orarie in cui il docente NON Ã¨ disponibile per fare lezione.
                         Puoi bloccare un giorno intero oppure solo fasce orarie specifiche.
                     </p>
                 </div>
@@ -1786,7 +1991,7 @@ const SchoolScheduleManager = () => {
                 </button>
 
                 <div className="space-y-2">
-                    <h5 className="font-semibold text-sm text-gray-700">Indisponibilità Attuali:</h5>
+                    <h5 className="font-semibold text-sm text-gray-700">IndisponibilitÃ  Attuali:</h5>
                     {italianDays.slice(1, 6).map((dayName, idx) => {
                         const dayNum = idx + 1;
                         const dayUnavail = getUnavailabilityForDay(dayNum);
@@ -1809,7 +2014,7 @@ const SchoolScheduleManager = () => {
                                 </div>
                                 {fullDay ? (
                                     <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-900 rounded text-xs font-bold">
-                                        🚫 GIORNO INTERO BLOCCATO
+                                        ðŸš« GIORNO INTERO BLOCCATO
                                     </span>
                                 ) : (
                                     <div className="flex flex-wrap gap-1">
@@ -1823,7 +2028,7 @@ const SchoolScheduleManager = () => {
                                                     onClick={() => handleRemoveUnavailability(dayNum, time)}
                                                     className="hover:bg-red-200 rounded-full"
                                                 >
-                                                    ×
+                                                    Ã—
                                                 </button>
                                             </span>
                                         ))}
@@ -1833,7 +2038,7 @@ const SchoolScheduleManager = () => {
                         );
                     })}
                     {(teacher.unavailability || []).length === 0 && (
-                        <p className="text-sm text-gray-500 italic">Nessuna indisponibilità impostata</p>
+                        <p className="text-sm text-gray-500 italic">Nessuna indisponibilitÃ  impostata</p>
                     )}
                 </div>
             </div>
@@ -1842,24 +2047,24 @@ const SchoolScheduleManager = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-[1330px] mx-auto">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-6 mb-6 text-white">
                     <div className="flex justify-between items-start">
                         <div>
                             <h1 className="text-3xl font-bold mb-2">N.S.E. - Next School Engine</h1>
-                            <p className="text-blue-100">🚀 v3.7.1 - Chiusure Natalizie Complete</p>
-                            <p className="text-blue-100">💾 24-26 dic + 30-31 dic + 2-5 gen chiusura</p>
+                            <p className="text-blue-100">ðŸš€ v4.0.2 - Blocchi 3-4h Prioritari</p>
+                            <p className="text-blue-100">ðŸ’¾ Priorità materie + Formula 3+3 docenti</p>
                         </div>
                         <div className="text-right">
                             <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
                                 <div className="text-xs text-blue-100">Versione</div>
-                                <div className="text-2xl font-bold">3.7.1</div>
+                                <div className="text-2xl font-bold">4.0.2</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* 🔥 NUOVO: Banner con pulsanti Export/Import/Clear */}
+                {/* ðŸ”¥ NUOVO: Banner con pulsanti Export/Import/Clear */}
                 <div className="bg-white rounded-lg shadow p-4 mb-6 border-2 border-green-400">
                     <div className="flex flex-wrap gap-4 items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1935,14 +2140,14 @@ const SchoolScheduleManager = () => {
                             </div>
 
                             <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                                <p className="text-sm text-green-800"><strong>✅ Controlli attivi:</strong> Le ore del corso non supereranno mai il 100%. Cancellando lezioni si liberano ore, aggiungendole si occupano.</p>
+                                <p className="text-sm text-green-800"><strong>âœ… Controlli attivi:</strong> Le ore del corso non supereranno mai il 100%. Cancellando lezioni si liberano ore, aggiungendole si occupano.</p>
                             </div>
                             
                             {/* Filtro Corsi */}
                             {courses.length > 0 && (
                                 <div className="mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
                                     <div className="flex justify-between items-center mb-3">
-                                        <h3 className="font-bold text-blue-900">🔍 Filtra per Corso</h3>
+                                        <h3 className="font-bold text-blue-900">ðŸ” Filtra per Corso</h3>
                                         <div className="flex gap-2">
                                             <button 
                                                 onClick={selectAllCourses}
@@ -1983,9 +2188,9 @@ const SchoolScheduleManager = () => {
                                         })}
                                     </div>
                                     {filteredCourseIds.length === 0 ? (
-                                        <p className="text-sm text-blue-700 mt-2 italic">📌 Nessun filtro attivo - Mostrando tutti i corsi</p>
+                                        <p className="text-sm text-blue-700 mt-2 italic">ðŸ“Œ Nessun filtro attivo - Mostrando tutti i corsi</p>
                                     ) : (
-                                        <p className="text-sm text-blue-700 mt-2 italic">📌 Mostrando {filteredCourseIds.length} di {courses.length} corsi</p>
+                                        <p className="text-sm text-blue-700 mt-2 italic">ðŸ“Œ Mostrando {filteredCourseIds.length} di {courses.length} corsi</p>
                                     )}
                                 </div>
                             )}
@@ -1993,11 +2198,11 @@ const SchoolScheduleManager = () => {
                             {viewMode === 'week' && (
                                 <div>
                                     <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
-                                        <button onClick={() => navigateWeek(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">← Prec.</button>
+                                        <button onClick={() => navigateWeek(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">â† Prec.</button>
                                         <h3 className="text-lg font-semibold">
                                             Settimana del {getWeekDates()[0].toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
                                         </h3>
-                                        <button onClick={() => navigateWeek(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Succ. →</button>
+                                        <button onClick={() => navigateWeek(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Succ. â†’</button>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full border-collapse">
@@ -2007,12 +2212,14 @@ const SchoolScheduleManager = () => {
                                                     {getWeekDates().map((date, idx) => {
                                                         const isHoliday = isItalianHoliday(formatDate(date));
                                                         const holidayName = isHoliday ? getItalianHolidayName(formatDate(date)) : null;
+                                                        const isSaturday = date.getDay() === 6;
+                                                        const widthClass = isSaturday ? 'min-w-[75px] max-w-[75px]' : 'min-w-[150px]';
                                                         return (
-                                                            <th key={idx} className={`border p-2 min-w-[150px] ${isHoliday ? 'bg-red-100' : 'bg-gray-100'}`}>
+                                                            <th key={idx} className={`border p-2 ${widthClass} ${isHoliday ? 'bg-red-100' : 'bg-gray-100'}`}>
                                                                 <div className="font-bold">{italianDays[date.getDay()]}</div>
                                                                 <div className="text-sm font-normal">{date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</div>
                                                                 {isHoliday && (
-                                                                    <div className="text-xs text-red-700 font-semibold mt-1">🎉 {holidayName}</div>
+                                                                    <div className="text-xs text-red-700 font-semibold mt-1">ðŸŽ‰ {holidayName}</div>
                                                                 )}
                                                             </th>
                                                         );
@@ -2027,6 +2234,7 @@ const SchoolScheduleManager = () => {
                                                         </td>
                                                         {getWeekDates().map((date, idx) => {
                                                             const dateStr = formatDate(date);
+                                                            const isSaturday = date.getDay() === 6;
                                                             const filteredLessons = getFilteredLessons();
                                                             const lessonsStarting = filteredLessons.filter(l => {
                                                                 if (l.date !== dateStr) return false;
@@ -2054,7 +2262,7 @@ const SchoolScheduleManager = () => {
                                                                                 const cellHeight = 62;
                                                                                 const heightPx = lesson.duration * cellHeight - 2;
                                                                                 
-                                                                                const lessonWidth = 120;
+                                                                                const lessonWidth = isSaturday ? 60 : 120;
                                                                                 const offsetX = lessonIndex * (lessonWidth * 0.5);
                                                                                 
                                                                                 return (
@@ -2100,11 +2308,11 @@ const SchoolScheduleManager = () => {
                             {viewMode === 'month' && (
                                 <div>
                                     <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
-                                        <button onClick={() => navigateMonth(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">← Prec.</button>
+                                        <button onClick={() => navigateMonth(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">â† Prec.</button>
                                         <h3 className="text-lg font-semibold capitalize">
                                             {selectedDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
                                         </h3>
-                                        <button onClick={() => navigateMonth(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Succ. →</button>
+                                        <button onClick={() => navigateMonth(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Succ. â†’</button>
                                     </div>
                                     <div className="grid grid-cols-7 gap-1">
                                         {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
@@ -2124,7 +2332,7 @@ const SchoolScheduleManager = () => {
                                                     <div className="font-semibold text-sm mb-1">{date.getDate()}</div>
                                                     {isHoliday && (
                                                         <div className="text-xs text-red-700 font-semibold mb-2 p-1 bg-red-100 rounded">
-                                                            🎉 {holidayName}
+                                                            ðŸŽ‰ {holidayName}
                                                         </div>
                                                     )}
                                                     {dayLessons.slice(0, 3).map(lesson => {
@@ -2164,8 +2372,8 @@ const SchoolScheduleManager = () => {
                             {selectedLesson && !showEditLessonDetails && (
                                 <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
                                     <div className="flex justify-between items-start mb-4">
-                                        <h3 className="text-xl font-bold text-blue-900">📋 Dettagli Lezione</h3>
-                                        <button onClick={() => setSelectedLesson(null)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                                        <h3 className="text-xl font-bold text-blue-900">ðŸ“‹ Dettagli Lezione</h3>
+                                        <button onClick={() => setSelectedLesson(null)} className="text-gray-500 hover:text-gray-700 text-2xl">Ã—</button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div><p className="text-sm text-gray-600 font-semibold">Materia:</p><p className="text-lg">{selectedLesson.subject}</p></div>
@@ -2174,7 +2382,7 @@ const SchoolScheduleManager = () => {
                                         <div><p className="text-sm text-gray-600 font-semibold">Aula:</p><p className="text-lg">{rooms.find(r => r.id === selectedLesson.roomId)?.name}</p></div>
                                         <div><p className="text-sm text-gray-600 font-semibold">Data e Ora:</p><p className="text-lg">{new Date(selectedLesson.date).toLocaleDateString('it-IT')} - {selectedLesson.startTime}</p></div>
                                         <div><p className="text-sm text-gray-600 font-semibold">Durata:</p><p className="text-lg">{selectedLesson.duration} ore</p></div>
-                                        <div><p className="text-sm text-gray-600 font-semibold">Numero Studenti:</p><p className="text-lg">👥 {selectedLesson.numberOfStudents}</p></div>
+                                        <div><p className="text-sm text-gray-600 font-semibold">Numero Studenti:</p><p className="text-lg">ðŸ‘¥ {selectedLesson.numberOfStudents}</p></div>
                                     </div>
                                     <div className="flex gap-2 mt-4">
                                         <button onClick={() => { setEditingLesson({...selectedLesson}); setShowEditLessonDetails(true); }} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Modifica</button>
@@ -2185,7 +2393,7 @@ const SchoolScheduleManager = () => {
 
                             {showEditLessonDetails && editingLesson && (
                                 <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
-                                    <h3 className="text-xl font-bold text-yellow-900 mb-4">✏️ Modifica Lezione</h3>
+                                    <h3 className="text-xl font-bold text-yellow-900 mb-4">âœï¸ Modifica Lezione</h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div><label className="block text-sm font-medium mb-1">Corso (opzionale)</label>
                                             <select value={editingLesson.courseId || ''} onChange={(e) => setEditingLesson({...editingLesson, courseId: e.target.value})} className="w-full p-2 border rounded">
@@ -2276,7 +2484,7 @@ const SchoolScheduleManager = () => {
                                                 <div>
                                                     <div className="font-semibold">{lesson.subject} {course && <span className="text-sm text-gray-600">({course.name})</span>}</div>
                                                     <div className="text-sm text-gray-600">{teacher?.name} - {lesson.date} {lesson.startTime} ({lesson.duration}h) - {room?.name}</div>
-                                                    {lesson.numberOfStudents && <div className="text-sm text-blue-600 font-semibold">👥 {lesson.numberOfStudents} studenti / {room?.capacity} posti</div>}
+                                                    {lesson.numberOfStudents && <div className="text-sm text-blue-600 font-semibold">ðŸ‘¥ {lesson.numberOfStudents} studenti / {room?.capacity} posti</div>}
                                                 </div>
                                                 <button onClick={() => deleteLesson(lesson.id)} className="text-red-600 hover:text-red-800"><Trash2Icon /></button>
                                             </div>
@@ -2287,7 +2495,7 @@ const SchoolScheduleManager = () => {
                         </div>
 
                         <div className="bg-white rounded-lg shadow p-6">
-                            <h2 className="text-2xl font-bold mb-4">📊 Statistiche</h2>
+                            <h2 className="text-2xl font-bold mb-4">ðŸ“Š Statistiche</h2>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div className="border-2 border-blue-500 rounded-lg p-6 text-center bg-blue-50">
                                     <div className="text-4xl font-bold text-blue-600">{courses.length}</div>
@@ -2313,7 +2521,7 @@ const SchoolScheduleManager = () => {
                 {activeTab === 'courses' && (
                     <div className="bg-white rounded-lg shadow p-6">
                         <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                            <h2 className="text-2xl font-bold text-gray-800">📚 Gestione Corsi</h2>
+                            <h2 className="text-2xl font-bold text-gray-800">ðŸ“š Gestione Corsi</h2>
                             <div className="flex gap-2 flex-wrap">
                                 <button 
                                     onClick={autoScheduleAllCourses} 
@@ -2343,18 +2551,18 @@ const SchoolScheduleManager = () => {
                         </div>
 
                         <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-300">
-                            <p className="text-sm text-green-900 mb-2"><strong>🚀 Calendarizzazione Globale Ottimizzata v3.0.3:</strong></p>
+                            <p className="text-sm text-green-900 mb-2"><strong>ðŸš€ Calendarizzazione Globale Ottimizzata v3.0.3:</strong></p>
                             <ul className="text-sm text-green-800 space-y-1 ml-4">
-                                <li>• Ottimizza tutti i corsi insieme alternando docenti e aule</li>
-                                <li>• Massimizza l'utilizzo docenti: target 8h al giorno per docente</li>
-                                <li>• Orario continuo dalle 9:00 alle 18:00</li>
-                                <li>• Rispetta sempre il 100% delle ore per ogni corso</li>
-                                <li>• ✅ BUGFIX: Previene doppia calendarizzazione corso nella stessa ora</li>
+                                <li>â€¢ Ottimizza tutti i corsi insieme alternando docenti e aule</li>
+                                <li>â€¢ Massimizza l'utilizzo docenti: target 8h al giorno per docente</li>
+                                <li>â€¢ Orario continuo dalle 9:00 alle 18:00</li>
+                                <li>â€¢ Rispetta sempre il 100% delle ore per ogni corso</li>
+                                <li>â€¢ âœ… BUGFIX: Previene doppia calendarizzazione corso nella stessa ora</li>
                             </ul>
                         </div>
 
                         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <p className="text-sm text-blue-800"><strong>💡 Controllo automatico:</strong> L'auto-calendarizzazione si ferma al 100% delle ore. Puoi aggiungere/rimuovere lezioni manualmente.</p>
+                            <p className="text-sm text-blue-800"><strong>ðŸ’¡ Controllo automatico:</strong> L'auto-calendarizzazione si ferma al 100% delle ore. Puoi aggiungere/rimuovere lezioni manualmente.</p>
                         </div>
 
                         {showAddCourse && (
@@ -2366,13 +2574,13 @@ const SchoolScheduleManager = () => {
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Totale ore assegnate</label>
                                         <input type="number" value={calculateAssignedHours(newCourse)} readOnly className="w-full p-2 border rounded bg-gray-100 text-gray-700 font-bold"/>
-                                        <p className="text-xs text-gray-500 mt-1">💡 Somma delle ore assegnate ai docenti per materia</p>
+                                        <p className="text-xs text-gray-500 mt-1">ðŸ’¡ Somma delle ore assegnate ai docenti per materia</p>
                                     </div>
                                     <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={newCourse.numberOfStudents} onChange={(e) => setNewCourse({...newCourse, numberOfStudents: e.target.value})} placeholder="Es: 25" className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={newCourse.maxDailyHours} onChange={(e) => setNewCourse({...newCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                     <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={newCourse.maxConsecutiveHours} onChange={(e) => setNewCourse({...newCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                     <div className="col-span-2">
-                                        <label className="block text-sm font-medium mb-2">🎨 Colore Corso</label>
+                                        <label className="block text-sm font-medium mb-2">ðŸŽ¨ Colore Corso</label>
                                         <div className="flex flex-wrap gap-2">
                                             {COURSE_COLORS.map((color, index) => {
                                                 const isSelected = newCourseColorIndex === index;
@@ -2384,12 +2592,12 @@ const SchoolScheduleManager = () => {
                                                         className={`w-12 h-12 rounded-lg ${color.bg} ${color.border} border-4 transition-all ${isSelected ? 'ring-4 ring-yellow-400 scale-110' : 'hover:scale-105'}`}
                                                         title={`Colore ${index + 1}`}
                                                     >
-                                                        {isSelected && <span className={`text-2xl ${color.text}`}>✓</span>}
+                                                        {isSelected && <span className={`text-2xl ${color.text}`}>âœ“</span>}
                                                     </button>
                                                 );
                                             })}
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-2">💡 Clicca su un colore per assegnarlo al nuovo corso</p>
+                                        <p className="text-xs text-gray-500 mt-2">ðŸ’¡ Clicca su un colore per assegnarlo al nuovo corso</p>
                                     </div>
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium mb-1">Aula Assegnata (opzionale)</label>
@@ -2397,7 +2605,7 @@ const SchoolScheduleManager = () => {
                                             <option value="">Nessuna aula fissa (usa qualsiasi aula disponibile)</option>
                                             {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - {r.capacity} posti ({r.type})</option>)}
                                         </select>
-                                        <p className="text-xs text-gray-500 mt-1">💡 Se selezioni un'aula, tutte le lezioni del corso verranno programmate in quella aula (se disponibile)</p>
+                                        <p className="text-xs text-gray-500 mt-1">ðŸ’¡ Se selezioni un'aula, tutte le lezioni del corso verranno programmate in quella aula (se disponibile)</p>
                                     </div>
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium mb-1">Date Corso</label>
@@ -2482,7 +2690,7 @@ const SchoolScheduleManager = () => {
                                                     )}
                                                     
                                                     {selectedTeacher && teacherSubjects.length === 0 && (
-                                                        <p className="text-sm text-gray-500 italic pl-4">⚠️ Questo docente non ha materie assegnate. Vai in "Gestione Insegnanti" per assegnarle.</p>
+                                                        <p className="text-sm text-gray-500 italic pl-4">âš ï¸ Questo docente non ha materie assegnate. Vai in "Gestione Insegnanti" per assegnarle.</p>
                                                     )}
                                                 </div>
                                             );
@@ -2525,14 +2733,14 @@ const SchoolScheduleManager = () => {
                                                 <div className="flex-1">
                                                     <h3 className="text-xl font-bold text-gray-800">{course.name}</h3>
                                                     <div className="flex gap-2 mt-2 flex-wrap">
-                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>📚 {course.totalHours}h corso</span>
-                                                        <span className={`text-sm px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold`}>✅ {assignedHours}h assegnate</span>
-                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>👥 {course.numberOfStudents}</span>
+                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>ðŸ“š {course.totalHours}h corso</span>
+                                                        <span className={`text-sm px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold`}>âœ… {assignedHours}h assegnate</span>
+                                                        <span className={`text-sm px-2 py-1 rounded ${color.badge}`}>ðŸ‘¥ {course.numberOfStudents}</span>
                                                         {course.roomId && (() => {
                                                             const assignedRoom = rooms.find(r => r.id === course.roomId);
                                                             return assignedRoom ? (
                                                                 <span className={`text-sm px-2 py-1 rounded bg-purple-100 text-purple-800 font-semibold`}>
-                                                                    🏫 {assignedRoom.name}
+                                                                    ðŸ« {assignedRoom.name}
                                                                 </span>
                                                             ) : null;
                                                         })()}
@@ -2546,7 +2754,7 @@ const SchoolScheduleManager = () => {
                                                     <span className="font-semibold">Progresso:</span>
                                                     <span className={progress >= 100 ? 'text-green-600 font-bold' : ''}>
                                                         {scheduledHours}h / {assignedHours}h ({progress.toFixed(1)}%)
-                                                        {progress >= 100 && ' ✅'}
+                                                        {progress >= 100 && ' âœ…'}
                                                     </span>
                                                 </div>
                                                 <div className="w-full bg-gray-200 rounded-full h-3">
@@ -2580,7 +2788,7 @@ const SchoolScheduleManager = () => {
                                         {editingCourse && editingCourse.id === course.id && (
                                             <div className="bg-blue-50 p-4 rounded-lg mt-4 border-2 border-blue-400">
                                                 <div className="flex justify-between items-center mb-4">
-                                                    <h3 className="font-bold text-blue-800">✏️ Modifica Corso</h3>
+                                                    <h3 className="font-bold text-blue-800">âœï¸ Modifica Corso</h3>
                                                     <div className="flex gap-2">
                                                         <button onClick={updateCourse} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold">Aggiorna</button>
                                                         <button onClick={() => { setEditingCourse(null); setShowEditCourse(false); }} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
@@ -2592,13 +2800,13 @@ const SchoolScheduleManager = () => {
                                                     <div>
                                                         <label className="block text-sm font-medium mb-1">Totale ore assegnate</label>
                                                         <input type="number" value={calculateAssignedHours(editingCourse)} readOnly className="w-full p-2 border rounded bg-gray-100 text-gray-700 font-bold"/>
-                                                        <p className="text-xs text-gray-500 mt-1">💡 Somma delle ore assegnate ai docenti per materia</p>
+                                                        <p className="text-xs text-gray-500 mt-1">ðŸ’¡ Somma delle ore assegnate ai docenti per materia</p>
                                                     </div>
                                                     <div><label className="block text-sm font-medium mb-1">Numero Studenti</label><input type="number" min="1" max="100" value={editingCourse.numberOfStudents} onChange={(e) => setEditingCourse({...editingCourse, numberOfStudents: e.target.value})} placeholder="Es: 25" className="w-full p-2 border rounded"/></div>
                                                     <div><label className="block text-sm font-medium mb-1">Max Ore Giornaliere</label><input type="number" min="1" max="8" value={editingCourse.maxDailyHours} onChange={(e) => setEditingCourse({...editingCourse, maxDailyHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                                     <div><label className="block text-sm font-medium mb-1">Max Ore Consecutive</label><input type="number" min="1" max="8" value={editingCourse.maxConsecutiveHours} onChange={(e) => setEditingCourse({...editingCourse, maxConsecutiveHours: e.target.value})} className="w-full p-2 border rounded"/></div>
                                                     <div className="col-span-2">
-                                                        <label className="block text-sm font-medium mb-2">🎨 Colore Corso</label>
+                                                        <label className="block text-sm font-medium mb-2">ðŸŽ¨ Colore Corso</label>
                                                         <div className="flex flex-wrap gap-2">
                                                             {COURSE_COLORS.map((color, index) => {
                                                                 const isSelected = courseColorMap[editingCourse.id] === index;
@@ -2610,12 +2818,12 @@ const SchoolScheduleManager = () => {
                                                                         className={`w-12 h-12 rounded-lg ${color.bg} ${color.border} border-4 transition-all ${isSelected ? 'ring-4 ring-yellow-400 scale-110' : 'hover:scale-105'}`}
                                                                         title={`Colore ${index + 1}`}
                                                                     >
-                                                                        {isSelected && <span className={`text-2xl ${color.text}`}>✓</span>}
+                                                                        {isSelected && <span className={`text-2xl ${color.text}`}>âœ“</span>}
                                                                     </button>
                                                                 );
                                                             })}
                                                         </div>
-                                                        <p className="text-xs text-gray-500 mt-2">💡 Clicca su un colore per assegnarlo a questo corso</p>
+                                                        <p className="text-xs text-gray-500 mt-2">ðŸ’¡ Clicca su un colore per assegnarlo a questo corso</p>
                                                     </div>
                                                     <div className="col-span-2">
                                                         <label className="block text-sm font-medium mb-1">Aula Assegnata (opzionale)</label>
@@ -2623,7 +2831,7 @@ const SchoolScheduleManager = () => {
                                                             <option value="">Nessuna aula fissa (usa qualsiasi aula disponibile)</option>
                                                             {rooms.map(r => <option key={r.id} value={r.id}>{r.name} - {r.capacity} posti ({r.type})</option>)}
                                                         </select>
-                                                        <p className="text-xs text-gray-500 mt-1">💡 Se selezioni un'aula, tutte le lezioni del corso verranno programmate in quella aula (se disponibile)</p>
+                                                        <p className="text-xs text-gray-500 mt-1">ðŸ’¡ Se selezioni un'aula, tutte le lezioni del corso verranno programmate in quella aula (se disponibile)</p>
                                                     </div>
                                                     <div className="col-span-2">
                                                         <label className="block text-sm font-medium mb-1">Date Corso</label>
@@ -2708,7 +2916,7 @@ const SchoolScheduleManager = () => {
                                                                     )}
                                                                     
                                                                     {selectedTeacher && teacherSubjects.length === 0 && (
-                                                                        <p className="text-sm text-gray-500 italic pl-4">⚠️ Questo docente non ha materie assegnate. Vai in "Gestione Insegnanti" per assegnarle.</p>
+                                                                        <p className="text-sm text-gray-500 italic pl-4">âš ï¸ Questo docente non ha materie assegnate. Vai in "Gestione Insegnanti" per assegnarle.</p>
                                                                     )}
                                                                 </div>
                                                             );
@@ -2740,7 +2948,7 @@ const SchoolScheduleManager = () => {
                 {activeTab === 'teachers' && (
                     <div className="bg-white rounded-lg shadow p-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">👨‍🏫 Gestione Insegnanti</h2>
+                            <h2 className="text-2xl font-bold text-gray-800">ðŸ‘¨â€ðŸ« Gestione Insegnanti</h2>
                             <button onClick={() => setShowAddTeacher(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                 <PlusIcon />Aggiungi
                             </button>
@@ -2768,6 +2976,7 @@ const SchoolScheduleManager = () => {
                                                             className="w-4 h-4"
                                                         />
                                                         <span className="text-sm">{subject.name}</span>
+                                                        {(() => { const p = getSubjectPriority(subject); return p.value > 0 ? <span className={`text-xs px-1 rounded ${p.color}`}>{p.icon}Lv.{p.level}</span> : null; })()}
                                                     </label>
                                                 ))}
                                             </div>
@@ -2775,7 +2984,7 @@ const SchoolScheduleManager = () => {
                                     </div>
                                     
                                     <div className="p-3 bg-white border rounded">
-                                        <label className="block text-sm font-medium mb-2">⏰ Ore minime giornaliere (opzionale):</label>
+                                        <label className="block text-sm font-medium mb-2">â° Ore minime giornaliere (opzionale):</label>
                                         <input 
                                             type="number" 
                                             min="0" 
@@ -2785,7 +2994,7 @@ const SchoolScheduleManager = () => {
                                             placeholder="0 = nessun minimo"
                                             className="w-full p-2 border rounded"
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">💡 Numero minimo di ore giornaliere da programmare per questo docente. Il sistema cercherà di alternare tra più corsi se possibile.</p>
+                                        <p className="text-xs text-gray-500 mt-1">ðŸ’¡ Numero minimo di ore giornaliere da programmare per questo docente. Il sistema cercherÃ  di alternare tra piÃ¹ corsi se possibile.</p>
                                     </div>
                                     
                                     <div className="flex gap-2">
@@ -2816,11 +3025,14 @@ const SchoolScheduleManager = () => {
                                             <p className="text-sm text-gray-500">{teacher.email}</p>
                                             <div className="mt-2 flex flex-wrap gap-1">
                                                 {teacherSubjects.length > 0 ? (
-                                                    teacherSubjects.map(subject => (
-                                                        <span key={subject.id} className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                                                            {subject.name}
+                                                    teacherSubjects.map(subject => {
+                                                        const prio = getSubjectPriority(subject);
+                                                        return (
+                                                        <span key={subject.id} className={`inline-block px-2 py-1 rounded text-xs font-semibold ${prio.value > 0 ? prio.color : 'bg-blue-100 text-blue-800'}`}>
+                                                            {prio.value > 0 && `${prio.icon} `}{subject.name}
                                                         </span>
-                                                    ))
+                                                        );
+                                                    })
                                                 ) : (
                                                     <span className="text-xs text-gray-400 italic">Nessuna materia assegnata</span>
                                                 )}
@@ -2828,12 +3040,12 @@ const SchoolScheduleManager = () => {
                                             {hasUnavailability && (
                                                 <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
                                                     <ClockIcon />
-                                                    {unavailCount} indisponibilità
+                                                    {unavailCount} indisponibilitÃ 
                                                 </div>
                                             )}
                                             {teacher.minDailyHours > 0 && (
                                                 <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                                                    ⏰ Min {teacher.minDailyHours}h/giorno
+                                                    â° Min {teacher.minDailyHours}h/giorno
                                                 </div>
                                             )}
                                         </div>
@@ -2845,7 +3057,7 @@ const SchoolScheduleManager = () => {
                                     
                                     {editingTeacher && editingTeacher.id === teacher.id && (
                                         <div className="bg-blue-50 p-4 rounded-lg mt-4 border-2 border-blue-300">
-                                            <h3 className="font-bold mb-4">✏️ Modifica Insegnante</h3>
+                                            <h3 className="font-bold mb-4">âœï¸ Modifica Insegnante</h3>
                                             <div className="space-y-3 mb-4">
                                                 <input type="text" value={editingTeacher.name} onChange={(e) => setEditingTeacher({...editingTeacher, name: e.target.value})} className="w-full p-2 border rounded"/>
                                                 <input type="email" value={editingTeacher.email} onChange={(e) => setEditingTeacher({...editingTeacher, email: e.target.value})} className="w-full p-2 border rounded"/>
@@ -2865,6 +3077,7 @@ const SchoolScheduleManager = () => {
                                                                         className="w-4 h-4"
                                                                     />
                                                                     <span className="text-sm">{subject.name}</span>
+                                                                    {(() => { const p = getSubjectPriority(subject); return p.value > 0 ? <span className={`text-xs px-1 rounded ${p.color}`}>{p.icon}Lv.{p.level}</span> : null; })()}
                                                                 </label>
                                                             ))}
                                                         </div>
@@ -2873,7 +3086,7 @@ const SchoolScheduleManager = () => {
                                             </div>
                                             
                                             <div className="p-3 bg-white border rounded mb-4">
-                                                <label className="block text-sm font-medium mb-2">⏰ Ore minime giornaliere (opzionale):</label>
+                                                <label className="block text-sm font-medium mb-2">â° Ore minime giornaliere (opzionale):</label>
                                                 <input 
                                                     type="number" 
                                                     min="0" 
@@ -2883,7 +3096,7 @@ const SchoolScheduleManager = () => {
                                                     placeholder="0 = nessun minimo"
                                                     className="w-full p-2 border rounded"
                                                 />
-                                                <p className="text-xs text-gray-500 mt-1">💡 Numero minimo di ore giornaliere da programmare per questo docente. Il sistema cercherà di alternare tra più corsi se possibile.</p>
+                                                <p className="text-xs text-gray-500 mt-1">ðŸ’¡ Numero minimo di ore giornaliere da programmare per questo docente. Il sistema cercherÃ  di alternare tra piÃ¹ corsi se possibile.</p>
                                             </div>
                                             
                                             <UnavailabilityManager 
@@ -2907,14 +3120,14 @@ const SchoolScheduleManager = () => {
                 {activeTab === 'subjects' && (
                     <div className="bg-white rounded-lg shadow p-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">📚 Gestione Materie</h2>
+                            <h2 className="text-2xl font-bold text-gray-800">ðŸ“š Gestione Materie</h2>
                             <button onClick={() => setShowAddSubject(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                 <PlusIcon />Aggiungi
                             </button>
                         </div>
 
                         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <p className="text-sm text-blue-800"><strong>💡 Info:</strong> Le materie definite qui possono essere assegnate agli insegnanti. Ogni insegnante può insegnare una o più materie.</p>
+                            <p className="text-sm text-blue-800"><strong>ðŸ’¡ Info:</strong> Le materie definite qui possono essere assegnate agli insegnanti. Ogni insegnante puÃ² insegnare una o piÃ¹ materie.</p>
                         </div>
 
                         {showAddSubject && (
@@ -2928,6 +3141,21 @@ const SchoolScheduleManager = () => {
                                         placeholder="Nome materia (es: Matematica, Informatica, ecc.)" 
                                         className="w-full p-2 border rounded"
                                     />
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">🎯 Priorità Calendarizzazione</label>
+                                        <select 
+                                            value={newSubject.priority || 0} 
+                                            onChange={(e) => setNewSubject({...newSubject, priority: parseInt(e.target.value)})}
+                                            className="w-full p-2 border rounded"
+                                        >
+                                            {SUBJECT_PRIORITIES.map(p => (
+                                                <option key={p.value} value={p.value}>
+                                                    {p.icon} Livello {p.level} - {p.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">💡 Livello 1 = massima priorità. Le materie senza flag hanno livello 4 (minima priorità).</p>
+                                    </div>
                                     <div className="flex gap-2">
                                         <button onClick={addSubject} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Salva</button>
                                         <button onClick={() => setShowAddSubject(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
@@ -2950,12 +3178,17 @@ const SchoolScheduleManager = () => {
                                         <React.Fragment key={subject.id}>
                                             <div className="border-2 rounded-lg p-4 hover:shadow-lg transition">
                                             <div className="mb-4">
+                                                {(() => { const prio = getSubjectPriority(subject); return prio.value > 0 ? (
+                                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold mb-1 ${prio.color}`}>
+                                                        {prio.icon} Lv.{prio.level} {prio.label}
+                                                    </span>
+                                                ) : null; })()}
                                                 <h3 className="font-bold text-lg">{subject.name}</h3>
                                                 <p className="text-sm text-gray-600 mt-1">
                                                     {teachersCount === 0 ? (
                                                         <span className="text-gray-400 italic">Nessun docente assegnato</span>
                                                     ) : (
-                                                        <span className="text-green-600 font-semibold">👨‍🏫 {teachersCount} docent{teachersCount === 1 ? 'e' : 'i'}</span>
+                                                        <span className="text-green-600 font-semibold">ðŸ‘¨â€ðŸ« {teachersCount} docent{teachersCount === 1 ? 'e' : 'i'}</span>
                                                     )}
                                                 </p>
                                             </div>
@@ -2977,7 +3210,7 @@ const SchoolScheduleManager = () => {
                                         
                                         {editingSubject && editingSubject.id === subject.id && (
                                             <div className="bg-blue-50 p-4 rounded-lg mt-4 border-2 border-blue-300">
-                                                <h3 className="font-bold mb-4">✏️ Modifica Materia</h3>
+                                                <h3 className="font-bold mb-4">âœï¸ Modifica Materia</h3>
                                                 <div className="space-y-3">
                                                     <input 
                                                         type="text" 
@@ -2985,6 +3218,20 @@ const SchoolScheduleManager = () => {
                                                         onChange={(e) => setEditingSubject({...editingSubject, name: e.target.value})} 
                                                         className="w-full p-2 border rounded"
                                                     />
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">🎯 Priorità Calendarizzazione</label>
+                                                        <select 
+                                                            value={editingSubject.priority || 0} 
+                                                            onChange={(e) => setEditingSubject({...editingSubject, priority: parseInt(e.target.value)})}
+                                                            className="w-full p-2 border rounded"
+                                                        >
+                                                            {SUBJECT_PRIORITIES.map(p => (
+                                                                <option key={p.value} value={p.value}>
+                                                                    {p.icon} Livello {p.level} - {p.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                     <div className="flex gap-2">
                                                         <button onClick={updateSubject} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Aggiorna</button>
                                                         <button onClick={() => {setShowEditSubject(false); setEditingSubject(null);}} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Annulla</button>
@@ -3003,7 +3250,7 @@ const SchoolScheduleManager = () => {
                 {activeTab === 'rooms' && (
                     <div className="bg-white rounded-lg shadow p-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">🏫 Gestione Aule</h2>
+                            <h2 className="text-2xl font-bold text-gray-800">ðŸ« Gestione Aule</h2>
                             <button onClick={() => setShowAddRoom(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                 <PlusIcon />Aggiungi
                             </button>
@@ -3042,7 +3289,7 @@ const SchoolScheduleManager = () => {
                                             <h3 className="text-xl font-bold text-gray-800">{room.name}</h3>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-sm px-2 py-1 bg-gray-200 rounded">{room.type}</span>
-                                                {room.hasProjector && <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded">🎥 Proiettore</span>}
+                                                {room.hasProjector && <span className="text-sm px-2 py-1 bg-green-100 text-green-800 rounded">ðŸŽ¥ Proiettore</span>}
                                             </div>
                                         </div>
                                         <div className="bg-blue-100 px-3 py-1 rounded-full">
@@ -3057,7 +3304,7 @@ const SchoolScheduleManager = () => {
                                 
                                 {editingRoom && editingRoom.id === room.id && (
                                     <div className="bg-blue-50 p-4 rounded-lg mt-4 border-2 border-blue-300">
-                                        <h3 className="font-bold mb-4">✏️ Modifica Aula</h3>
+                                        <h3 className="font-bold mb-4">âœï¸ Modifica Aula</h3>
                                         <div className="grid grid-cols-2 gap-4">
                                             <input type="text" value={editingRoom.name} onChange={(e) => setEditingRoom({...editingRoom, name: e.target.value})} placeholder="Nome aula" className="p-2 border rounded"/>
                                             <input type="number" min="1" max="100" value={editingRoom.capacity} onChange={(e) => setEditingRoom({...editingRoom, capacity: e.target.value})} placeholder="Capienza" className="p-2 border rounded"/>
